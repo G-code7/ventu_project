@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Servicio del Backend (Django API)
+  backend:
+    build: ./backend
+    # El nombre del contenedor para fácil referencia
+    container_name: ventu_backend
+    # Comando para iniciar el servidor de desarrollo de Django
+    # Lo cambiaremos por gunicorn en producción
+    command: python manage.py runserver 0.0.0.0:8000
+    # Montar el volumen para que los cambios en el código se reflejen en vivo
+    volumes:
+      - ./backend:/app
+      - ./backend/media:/app/media
+    # Mapear el puerto 8000 del contenedor al puerto 8000 de nuestra máquina
+    ports:
+      - "8000:8000"
+    # Variables de entorno para la conexión a la base de datos
+    # Docker Compose las toma de un archivo .env si existe en la misma carpeta
+    env_file:
+      - ./.env
+    # Dependencia: no iniciar el backend hasta que la base de datos esté lista
+    depends_on:
+      - db
+
+  # Servicio del Frontend (React App)
+  frontend:
+    build: ./frontend
+    container_name: ventu_frontend
+    # Montar el volumen para desarrollo en vivo
+    volumes:
+      - ./frontend:/app
+      # También montamos node_modules para evitar que se sobreescriba por el host
+      - /app/node_modules
+    # Mapear el puerto de Vite
+    ports:
+      - "5173:5173"
+    # Depende del backend para poder hacerle peticiones a la API
+    depends_on:
+      - backend
+
+  # Servicio de la Base de Datos (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: ventu_db
+    # Montar un volumen para persistir los datos de la base de datos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+
+# Definir el volumen para la persistencia de datos de PostgreSQL
+volumes:
+  postgres_data:

@@ -1,0 +1,61 @@
+# Git ignore para un proyecto Dockerizado con Django + React
+
+# General
+# -----------------------------------------------------------------------------
+.DS_Store
+*.log
+*.pot
+*.pyc
+local_settings.py
+
+
+# Entornos Virtuales y Dependencias de Python
+# -----------------------------------------------------------------------------
+__pycache__/
+venv/
+env/
+.venv/
+
+
+# Archivos de Entorno (¡MUY IMPORTANTE!)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+
+
+# Docker
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+
+
+# Django
+# -----------------------------------------------------------------------------
+# Base de datos local si se usara
+db.sqlite3
+db.sqlite3-journal
+
+# Archivos subidos por los usuarios
+/backend/media/
+
+
+# Frontend (Node / Vite / React)
+# -----------------------------------------------------------------------------
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.pnp
+/frontend/.pnp.js
+/frontend/.vite/
+/frontend/.env.local
+/frontend/.env.*.local
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontend/pnpm-debug.log*
+
+
+# IDE / Configuraciones de Editor
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
