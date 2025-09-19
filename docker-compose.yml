@@ -31,7 +31,6 @@ services:
     # Montar el volumen para desarrollo en vivo
     volumes:
       - ./frontend:/app
-      # También montamos node_modules para evitar que se sobreescriba por el host
       - /app/node_modules
     # Mapear el puerto de Vite
     ports:

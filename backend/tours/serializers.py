@@ -1,69 +1,64 @@
 from rest_framework import serializers
-from .models import TourPackage, PackageImage, Tag
-from users.models import OperatorProfile
+from .models import TourPackage, PackageImage, Tag, Review
+from users.models import CustomUser
 
-# -----------------------------------------------------------------------------
-# Serializers para Modelos Relacionados
-# -----------------------------------------------------------------------------
+# --- Serializers Anidados ---
 
 class PackageImageSerializer(serializers.ModelSerializer):
-    """
-    Serializer para mostrar las imágenes de un paquete.
-    """
+    """ Traduce solo la información esencial de las imágenes. """
     class Meta:
         model = PackageImage
-        fields = ['id', 'image']
-
+        fields = ['id', 'image', 'is_main_image']
 
 class TagSerializer(serializers.ModelSerializer):
-    """
-    Serializer para mostrar las etiquetas.
-    """
+    """ Traduce las etiquetas a un formato simple. """
     class Meta:
         model = Tag
         fields = ['id', 'name']
 
-# -----------------------------------------------------------------------------
-# Serializer Principal para TourPackage
-# -----------------------------------------------------------------------------
+class ReviewSerializer(serializers.ModelSerializer):
+    """
+    Traduce las reseñas, mostrando el nombre del viajero en lugar de solo su ID.
+    """
+    traveler_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = ['id', 'tour_package', 'traveler_name', 'rating', 'comment', 'created_at']
+    
+    def get_traveler_name(self, obj):
+        # obj.traveler es la instancia de CustomUser
+        if obj.traveler:
+            return obj.traveler.get_full_name() or obj.traveler.username
+        return "Anónimo"
+
+
+# --- Serializer Principal ---
 
 class TourPackageSerializer(serializers.ModelSerializer):
     """
-    Serializer mejorado para TourPackage que incluye datos de modelos relacionados.
+    Serializer principal y más complejo. Traduce los TourPackage
+    e incluye datos anidados de sus imágenes y etiquetas.
     """
-    # Campo calculado para obtener el nombre de la organización del operador.
     operator_name = serializers.SerializerMethodField()
-    
-    # Campo anidado para mostrar la lista de imágenes del paquete.
-    # 'many=True' indica que es una relación de uno a muchos.
-    # 'source="images"' le dice a DRF que busque el related_name 'images' en el modelo.
-    images = PackageImageSerializer(many=True, read_only=True, source='packageimage_set')
-    
-    # Campo para mostrar los nombres de las etiquetas de forma simple.
     tags = TagSerializer(many=True, read_only=True)
+    images = PackageImageSerializer(many=True, read_only=True)
+    reviews = ReviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = TourPackage
-        # Actualizamos la lista de campos para incluir nuestros nuevos campos inteligentes.
         fields = [
-            'id', 
-            'title', 
-            'description', 
-            'location', 
-            'price', 
-            'duration_days',
-            'operator_name', # Nuestro nuevo campo calculado
-            'tags',          # Nuestra nueva lista de etiquetas
-            'images',        # Nuestra nueva lista de imágenes
+            'id', 'title', 'description', 'location', 'destination', 'price', 
+            'duration_days', 'operator', 'operator_name', 'tags', 'images', 'reviews',
+            'what_is_included', 'itinerary' # Añadimos más campos útiles
         ]
-        
+        # Hacemos que el operador sea de solo lectura en la API, se asignará automáticamente.
+        read_only_fields = ['operator']
+
     def get_operator_name(self, obj):
-        """
-        Esta función se llama automáticamente para el campo 'operator_name'.
-        'obj' es la instancia del TourPackage que se está serializando.
-        """
-        # Navegamos a través de las relaciones para obtener el nombre de la organización
-        if obj.operator and obj.operator.user:
-            return obj.operator.user.organization_name
-        return "Operador Desconocido"
+        # CORRECCIÓN: obj.operator es el CustomUser. Accedemos a su perfil relacionado.
+        if hasattr(obj.operator, 'operatorprofile') and obj.operator.operatorprofile.organization_name:
+            return obj.operator.operatorprofile.organization_name
+        # Si no tiene nombre de organización, devolvemos su nombre completo o username.
+        return obj.operator.get_full_name() or obj.operator.username
 
