@@ -1,47 +1,20 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import ventuLogo from './assets/ventu-logo-orange.png';
 
 // --- Iconos SVG para la UI ---
-// (Se mantienen los mismos componentes de iconos que ya teníamos)
-const SearchIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-const HeartIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" />
-  </svg>
-);
-const StarIcon = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-    </svg>
-);
-const ChevronLeftIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-  </svg>
-);
-const ChevronRightIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-  </svg>
-);
-
+const SearchIcon = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg> );
+const HeartIcon = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg> );
+const StarIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg> );
 
 // --- Componente: Header ---
 function Header() {
-  // NOTA: Asumimos que tienes una carpeta `src/assets` con tu logo.
-  // Si no existe, se mostrará un placeholder para evitar que la app se rompa.
-  const logoUrl = './assets/ventu-logo-orange.png'; // Placeholder por si el logo local falla.
-
   return (
     <header className="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
       <nav className="container mx-auto px-6 py-3 flex justify-between items-center">
         <div className="flex items-center">
            <img 
-            src={logoUrl} 
+            src={ventuLogo} 
             alt="VENTU Logo" 
             className="h-10 w-auto"
           />
@@ -71,7 +44,7 @@ function Hero() {
     return (
         <section 
             className="h-[500px] bg-cover bg-center text-white flex flex-col items-center justify-center relative"
-            style={{ backgroundImage: `url('${heroImage}')` }}
+            style={{ backgroundImage: `src(./assets/hero-home-bg.jpg)` }}
         >
             <div className="absolute inset-0 bg-black opacity-50"></div>
             <div className="relative z-10 text-center px-4">
@@ -98,11 +71,13 @@ function Hero() {
 
 // --- Componente: Tarjeta de Tour ---
 function TourCard({ tour }) {
-  const imageUrl = tour.images && tour.images.length > 0
-    ? `http://localhost:8000${tour.images.find(img => img.is_main_image)?.image || tour.images[0].image}`
-    : 'https://placehold.co/600x400/FF7900/FFFFFF?text=VENTU';
+  // CORRECCIÓN 2: La API ya nos da la URL completa. No necesitamos añadir "http://localhost:8000".
+  let imageUrl = 'https://placehold.co/600x400/FF7900/FFFFFF?text=VENTU';
+  if (tour.images && tour.images.length > 0) {
+    const mainImage = tour.images.find(img => img.is_main_image);
+    imageUrl = mainImage ? mainImage.image : tour.images[0].image;
+  }
 
-  // Simulación de datos de rating
   const rating = 4.8;
   const reviewCount = 25;
 
@@ -110,14 +85,8 @@ function TourCard({ tour }) {
     <div className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 ease-in-out group flex flex-col h-full">
       <div className="relative">
         <img className="w-full h-52 object-cover" src={imageUrl} alt={tour.title} />
-        <button className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-600 hover:text-red-500 transition-colors z-10">
-          <HeartIcon className="w-5 h-5" />
-        </button>
-        {tour.tags && tour.tags.length > 0 && (
-            <span className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-semibold text-gray-700">
-                {tour.tags[0].name}
-            </span>
-        )}
+        <button className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-600 hover:text-red-500 transition-colors z-10"><HeartIcon className="w-5 h-5" /></button>
+        {tour.tags && tour.tags.length > 0 && (<span className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-semibold text-gray-700">{tour.tags[0].name}</span>)}
       </div>
       <div className="p-4 flex flex-col flex-grow">
         <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-orange-500 transition-colors duration-200 min-h-[3.5rem]">{tour.title}</h3>
@@ -129,10 +98,8 @@ function TourCard({ tour }) {
         </div>
         <hr className="my-2"/>
         <div className="flex justify-between items-center mt-2">
-          <span className="text-xs text-gray-500">{tour.duration_days} día(s)</span>
-          <p className="text-lg font-bold text-gray-900">
-            Desde <span className="text-orange-500">${parseFloat(tour.price).toFixed(0)}</span>
-          </p>
+            <span className="text-xs text-gray-500">{tour.duration_days} día(s)</span>
+            <p className="text-lg font-bold text-gray-900">Desde <span className="text-orange-500">${parseFloat(tour.price).toFixed(0)}</span></p>
         </div>
       </div>
     </div>
