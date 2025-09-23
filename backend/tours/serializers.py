@@ -1,14 +1,6 @@
 from rest_framework import serializers
 from .models import TourPackage, PackageImage, Tag, Review
-from users.models import CustomUser
-
-# --- Serializers Anidados ---
-
-class PackageImageSerializer(serializers.ModelSerializer):
-    """ Traduce solo la información esencial de las imágenes. """
-    class Meta:
-        model = PackageImage
-        fields = ['id', 'image', 'is_main_image']
+# Quitamos la importación de 'users.models' que no se usa aquí para mantener el código limpio.
 
 class TagSerializer(serializers.ModelSerializer):
     """ Traduce las etiquetas a un formato simple. """
@@ -16,49 +8,46 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = ['id', 'name']
 
+class PackageImageSerializer(serializers.ModelSerializer):
+    """ Traduce la información de las imágenes del paquete. """
+    class Meta:
+        model = PackageImage
+        fields = ['id', 'image', 'is_main_image']
+
 class ReviewSerializer(serializers.ModelSerializer):
-    """
-    Traduce las reseñas, mostrando el nombre del viajero en lugar de solo su ID.
-    """
-    traveler_name = serializers.SerializerMethodField()
+    """ Traduce las reseñas, mostrando el nombre del viajero. """
+    # Usamos StringRelatedField para obtener el __str__ del modelo relacionado (el email del usuario)
+    traveler_name = serializers.StringRelatedField(source='traveler', read_only=True)
 
     class Meta:
         model = Review
-        fields = ['id', 'tour_package', 'traveler_name', 'rating', 'comment', 'created_at']
-    
-    def get_traveler_name(self, obj):
-        # obj.traveler es la instancia de CustomUser
-        if obj.traveler:
-            return obj.traveler.get_full_name() or obj.traveler.username
-        return "Anónimo"
-
-
-# --- Serializer Principal ---
+        fields = ['id', 'tour_package', 'traveler', 'traveler_name', 'rating', 'comment', 'created_at']
+        # Hacemos 'traveler' de solo escritura, se asignará automáticamente desde la vista.
+        read_only_fields = ['traveler']
 
 class TourPackageSerializer(serializers.ModelSerializer):
     """
-    Serializer principal y más complejo. Traduce los TourPackage
-    e incluye datos anidados de sus imágenes y etiquetas.
+    Serializer principal para los paquetes. Muestra datos anidados al leer
+    y acepta IDs de etiquetas al escribir.
     """
-    operator_name = serializers.SerializerMethodField()
+    # Al LEER (GET), estos campos mostrarán los datos completos anidados.
     tags = TagSerializer(many=True, read_only=True)
     images = PackageImageSerializer(many=True, read_only=True)
     reviews = ReviewSerializer(many=True, read_only=True)
+    operator_name = serializers.StringRelatedField(source='operator.organization_name', read_only=True)
+    
+    # Al ESCRIBIR (POST/PUT), este campo aceptará una lista de IDs de tags.
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(), source='tags', many=True, write_only=True, required=False
+    )
 
     class Meta:
         model = TourPackage
         fields = [
-            'id', 'title', 'description', 'location', 'destination', 'price', 
-            'duration_days', 'operator', 'operator_name', 'tags', 'images', 'reviews',
-            'what_is_included', 'itinerary' # Añadimos más campos útiles
+            'id', 'title', 'description', 'location', 'destination', 
+            'price', 'duration_days', 'operator', 'operator_name', 
+            'tags', 'images', 'reviews', 'what_is_included', 'itinerary', 
+            'meeting_point', 'meeting_time', 'tag_ids'
         ]
-        # Hacemos que el operador sea de solo lectura en la API, se asignará automáticamente.
-        read_only_fields = ['operator']
-
-    def get_operator_name(self, obj):
-        # CORRECCIÓN: obj.operator es el CustomUser. Accedemos a su perfil relacionado.
-        if hasattr(obj.operator, 'operatorprofile') and obj.operator.operatorprofile.organization_name:
-            return obj.operator.operatorprofile.organization_name
-        # Si no tiene nombre de organización, devolvemos su nombre completo o username.
-        return obj.operator.get_full_name() or obj.operator.username
-
+        # El operador y las reseñas no se pueden asignar/modificar a través de este endpoint directamente.
+        read_only_fields = ['operator', 'reviews']

@@ -1,91 +1,162 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Auth/authContext';
+import { useAuth } from '../auth/authContext';
+import { XIcon } from '../shared/icons';
 
 function CreatePackagePage() {
     const navigate = useNavigate();
     const { authTokens } = useAuth();
     const [error, setError] = useState('');
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        location: '',
-        destination: '',
-        price: '',
-        duration_days: 1,
-        what_is_included: '["Transporte", "Almuerzo"]', // Ejemplo en formato JSON
-        itinerary: '{"Día 1": "Descripción..."}',      // Ejemplo en formato JSON
-    });
+    
+    // Tu lógica de estado es perfecta, la mantenemos.
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [location, setLocation] = useState('');
+    const [destination, setDestination] = useState('');
+    const [price, setPrice] = useState('');
+    const [duration, setDuration] = useState(1);
+    const [tags, setTags] = useState([]);
+    const [selectedTags, setSelectedTags] = useState([]);
+    const [includes, setIncludes] = useState(['']);
+    const [mainImage, setMainImage] = useState(null);
+    const [galleryImages, setGalleryImages] = useState([]);
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    useEffect(() => {
+        const fetchTags = async () => {
+            try {
+                const response = await axios.get('http://localhost:8000/api/tags/');
+                setTags(response.data);
+            } catch (err) {
+                console.error("No se pudieron cargar las etiquetas", err);
+            }
+        };
+        fetchTags();
+    }, []);
+
+    // --- Tus manejadores de eventos (son excelentes, los mantenemos) ---
+    const handleTagChange = (tagId) => {
+        setSelectedTags(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
     };
+    const handleIncludeChange = (index, value) => {
+        const newIncludes = [...includes];
+        newIncludes[index] = value;
+        setIncludes(newIncludes);
+    };
+    const addInclude = () => setIncludes([...includes, '']);
+    const removeInclude = (index) => setIncludes(includes.filter((_, i) => i !== index));
 
+    // --- Tu lógica de envío (es perfecta, la mantenemos) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('location', location);
+        formData.append('destination', destination);
+        formData.append('price', price);
+        formData.append('duration_days', duration);
+        formData.append('meeting_point', 'Por definir'); // Placeholder
+        formData.append('meeting_time', '12:00:00'); // Placeholder
+        formData.append('what_is_included', JSON.stringify(includes.filter(item => item)));
+        selectedTags.forEach(tagId => formData.append('tag_ids', tagId));
+        if (mainImage) formData.append('main_image', mainImage);
+        galleryImages.forEach(image => formData.append('gallery_images', image));
 
         try {
-            // Preparamos los datos, convirtiendo los campos JSON a objetos
-            const dataToSubmit = {
-                ...formData,
-                what_is_included: JSON.parse(formData.what_is_included),
-                itinerary: JSON.parse(formData.itinerary),
-            };
-
-            await axios.post('http://localhost:8000/api/tours/', dataToSubmit, {
+            await axios.post('http://localhost:8000/api/tours/', formData, {
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'multipart/form-data',
                     'Authorization': `Bearer ${authTokens.access}`
                 }
             });
-            // Si tiene éxito, redirigimos al perfil/dashboard
             navigate('/me');
         } catch (err) {
             console.error("Error al crear el paquete:", err.response?.data);
-            setError('Hubo un error al crear el paquete. Revisa los campos.');
+            setError('Hubo un error al crear el paquete. Revisa que todos los campos estén correctos.');
         }
     };
 
+    // --- NUEVO JSX: Reestructurado y estilizado para una mejor UX ---
     return (
-        <div className="container mx-auto p-8">
-            <h1 className="text-4xl font-bold mb-6">Crear Nuevo Paquete Turístico</h1>
-            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="container mx-auto p-4 md:p-8">
+            <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">Crear Nuevo Paquete Turístico</h1>
+            <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8">
+                
+                <fieldset className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-8">
+                    <legend className="text-xl font-semibold text-gray-700 col-span-full mb-4">Información Básica</legend>
                     <div>
                         <label htmlFor="title" className="block text-sm font-medium text-gray-700">Título del Paquete</label>
-                        <input type="text" name="title" id="title" value={formData.title} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"/>
+                        <input type="text" name="title" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"/>
                     </div>
                     <div>
                         <label htmlFor="location" className="block text-sm font-medium text-gray-700">Ubicación (Estado)</label>
-                        <input type="text" name="location" id="location" value={formData.location} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                        <input type="text" name="location" id="location" value={location} onChange={(e) => setLocation(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                    </div>
+                    <div>
+                        <label htmlFor="destination" className="block text-sm font-medium text-gray-700">Destino Específico</label>
+                        <input type="text" name="destination" id="destination" value={destination} onChange={(e) => setDestination(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                     </div>
                      <div>
                         <label htmlFor="price" className="block text-sm font-medium text-gray-700">Precio Base (USD)</label>
-                        <input type="number" name="price" id="price" step="0.01" value={formData.price} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                        <input type="number" name="price" id="price" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                     </div>
                      <div>
                         <label htmlFor="duration_days" className="block text-sm font-medium text-gray-700">Duración (días)</label>
-                        <input type="number" name="duration_days" id="duration_days" value={formData.duration_days} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                        <input type="number" name="duration_days" id="duration_days" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                     </div>
-                </div>
-                
-                <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción Larga</label>
-                    <textarea name="description" id="description" rows="4" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                </div>
-                
-                {/* NOTA: Estos campos JSON son para desarrollo. En una app real, usarías una UI más amigable. */}
-                <div>
-                    <label htmlFor="what_is_included" className="block text-sm font-medium text-gray-700">Qué Incluye (formato JSON Array)</label>
-                    <input type="text" name="what_is_included" id="what_is_included" value={formData.what_is_included} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
-                </div>
+                    <div className="md:col-span-2">
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción Larga</label>
+                        <textarea name="description" id="description" rows="4" value={description} onChange={(e) => setDescription(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                    </div>
+                </fieldset>
 
-                {error && <p className="text-red-500 text-center">{error}</p>}
+                <fieldset className="border-b pb-8">
+                     <legend className="text-xl font-semibold text-gray-700 mb-4">Imágenes</legend>
+                     <div className="space-y-4">
+                        <div>
+                            <label htmlFor="main_image" className="block text-sm font-medium text-gray-700">Imagen Principal</label>
+                            <input type="file" name="main_image" id="main_image" accept="image/*" onChange={(e) => setMainImage(e.target.files[0])} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"/>
+                        </div>
+                        <div>
+                            <label htmlFor="gallery_images" className="block text-sm font-medium text-gray-700">Imágenes de Galería (puedes seleccionar varias)</label>
+                            <input type="file" name="gallery_images" id="gallery_images" accept="image/*" multiple onChange={(e) => setGalleryImages(Array.from(e.target.files))} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                        </div>
+                     </div>
+                </fieldset>
                 
-                <div className="text-right">
-                    <button type="submit" className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors">
+                <fieldset className="border-b pb-8">
+                    <legend className="text-xl font-semibold text-gray-700 mb-4">Etiquetas</legend>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+                        {tags.map(tag => (
+                            <label key={tag.id} className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" checked={selectedTags.includes(tag.id)} onChange={() => handleTagChange(tag.id)} className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/>
+                                <span className="text-sm text-gray-700">{tag.name}</span>
+                            </label>
+                        ))}
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend className="text-xl font-semibold text-gray-700 mb-4">¿Qué Incluye el Paquete?</legend>
+                    <div className="space-y-2">
+                        {includes.map((item, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                                <input type="text" value={item} onChange={(e) => handleIncludeChange(index, e.target.value)} placeholder={`Elemento #${index + 1}`} className="w-full p-2 border border-gray-300 rounded-md"/>
+                                {includes.length > 1 && (
+                                    <button type="button" onClick={() => removeInclude(index)} className="text-red-500 hover:text-red-700 p-1"><XIcon className="w-5 h-5"/></button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addInclude} className="mt-2 text-sm font-semibold text-orange-600 hover:text-orange-800">+ Añadir elemento</button>
+                </fieldset>
+
+                {error && <p className="text-red-500 text-center bg-red-100 p-3 rounded-md">{error}</p>}
+                
+                <div className="text-right pt-4">
+                    <button type="submit" className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-colors shadow-lg transform hover:scale-105">
                         Publicar Paquete
                     </button>
                 </div>
