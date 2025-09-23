@@ -45,16 +45,27 @@ class OperatorProfile(models.Model):
     Perfil con información específica para los usuarios con rol de Operador.
     """
     class RifType(models.TextChoices):
-        VENEZOLANO = "V", "V"
-        EXTRANJERO = "E", "E"
-        JURIDICO = "J", "J"
-        GUBERNAMENTAL = "G", "G"
+        VENEZOLANO = "V", "Venezolano"
+        EXTRANJERO = "E", "Extranjero"
+        JURIDICO = "J", "Jurídico"
+        GUBERNAMENTAL = "G", "Gubernamental"
     
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True, related_name="operator_profile", verbose_name="Usuario")
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pendiente de Aprobación"
+        ACTIVE = "ACTIVE", "Activo"
+        SUSPENDED = "SUSPENDED", "Suspendido"
+
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True, related_name="operatorprofile")
     organization_name = models.CharField(max_length=200, verbose_name="Nombre de la Organización")
+    
+    # Separamos el RIF en tipo y número
     rif_type = models.CharField(max_length=1, choices=RifType.choices, verbose_name="Tipo de RIF")
     rif_number = models.CharField(max_length=20, verbose_name="Número de RIF")
+
     social_media_link = models.URLField(blank=True, verbose_name="Enlace a Red Social Principal")
+    
+    # Añadimos el estado para la verificación del administrador
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, verbose_name="Estado")
 
     def __str__(self):
         return f"Perfil de Operador de {self.organization_name}"
@@ -62,4 +73,5 @@ class OperatorProfile(models.Model):
     class Meta:
         verbose_name = "Perfil de Operador"
         verbose_name_plural = "Perfiles de Operador"
-        unique_together = ('rif_type', 'rif_number') # Hacemos que el RIF sea único
+        # Hacemos que el RIF completo sea único
+        unique_together = ('rif_type', 'rif_number')
