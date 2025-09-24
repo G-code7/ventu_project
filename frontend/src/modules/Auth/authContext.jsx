@@ -1,4 +1,5 @@
-import React, { useState, createContext, useContext, useCallback } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import axios from 'axios';
 
 const AuthContext = createContext(null);
 
@@ -6,7 +7,11 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [authTokens, setAuthTokens] = useState(() => localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null);
+    const [authTokens, setAuthTokens] = useState(() => 
+        localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null
+    );
+    const [loadingAuth, setLoadingAuth] = useState(true);
+
     const loginUser = useCallback((tokens, userData) => {
         setAuthTokens(tokens);
         setUser(userData);
@@ -19,6 +24,24 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('authTokens');
     }, []);
 
-    const contextData = { user, setUser, authTokens, loginUser, logoutUser };
+    useEffect(() => {
+        const fetchUserOnLoad = async () => {
+            if (authTokens) {
+                try {
+                    const response = await axios.get('http://localhost:8000/api/users/me/', {
+                        headers: { 'Authorization': `Bearer ${authTokens.access}` }
+                    });
+                    setUser(response.data);
+                } catch (err) {
+                    logoutUser();
+                }
+            }
+            setLoadingAuth(false);
+        };
+        fetchUserOnLoad();
+    }, [authTokens, logoutUser]);
+
+    const contextData = { user, setUser, authTokens, loginUser, logoutUser, loadingAuth };
+    
     return <AuthContext.Provider value={contextData}>{children}</AuthContext.Provider>;
 }

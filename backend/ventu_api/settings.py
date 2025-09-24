@@ -12,12 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-txmc%4j6xtgi3meug-mzetf!!p&3#*^uqpai$mk@zyo4^^yzwu'
@@ -33,13 +28,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+    'django.contrib.sites',    
 
     # 3rd Party Apps
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'django_filters',
     'rest_framework_simplejwt',
+    'allauth',   
+    'allauth.account',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
 
     # Nuestras apps
     'users',
@@ -49,6 +49,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -58,7 +59,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'ventu_api.urls'
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -73,7 +73,6 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'ventu_api.wsgi.application'
 
 
@@ -124,6 +123,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.CustomUser'
+# ID del sitio, requerido por allauth
+SITE_ID = 1
+
+# Configuración de Email para Desarrollo
+# Imprime los emails en la consola en lugar de enviarlos realmente.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -133,6 +138,21 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
 }
+
+# --- CONFIGURACIÓN DE DJ-REST-AUTH ---
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_HTTPONLY': False,
+    'USER_DETAILS_SERIALIZER': 'users.serializers.UserProfileSerializer',
+}
+
+# --- Configuración de django-allauth --
+ACCOUNT_AUTHENTICATION_METHOD = 'email' 
+ACCOUNT_EMAIL_REQUIRED = True           
+ACCOUNT_USERNAME_REQUIRED = False       
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True     
+LOGIN_URL = '/accounts/login/'
 
 # --- CONFIGURACIÓN DE CORS ---
 CORS_ALLOWED_ORIGINS = [

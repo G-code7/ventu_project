@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/authContext';
-import { XIcon } from '../shared/icons';
+import { useAuth } from '../Auth/authContext';
+import { XIcon } from '../Shared/icons';
 
 function CreatePackagePage() {
     const navigate = useNavigate();
     const { authTokens } = useAuth();
     const [error, setError] = useState('');
     
-    // Tu lógica de estado es perfecta, la mantenemos.
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
@@ -34,7 +33,6 @@ function CreatePackagePage() {
         fetchTags();
     }, []);
 
-    // --- Tus manejadores de eventos (son excelentes, los mantenemos) ---
     const handleTagChange = (tagId) => {
         setSelectedTags(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
     };
@@ -46,7 +44,6 @@ function CreatePackagePage() {
     const addInclude = () => setIncludes([...includes, '']);
     const removeInclude = (index) => setIncludes(includes.filter((_, i) => i !== index));
 
-    // --- Tu lógica de envío (es perfecta, la mantenemos) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -78,7 +75,6 @@ function CreatePackagePage() {
         }
     };
 
-    // --- NUEVO JSX: Reestructurado y estilizado para una mejor UX ---
     return (
         <div className="container mx-auto p-4 md:p-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">Crear Nuevo Paquete Turístico</h1>
