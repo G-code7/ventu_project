@@ -1,63 +1,55 @@
 from rest_framework import serializers
+from dj_rest_auth.registration.serializers import RegisterSerializer
 from .models import CustomUser, OperatorProfile, TravelerProfile
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
+class UserRegistrationSerializer(RegisterSerializer):
     """
-    Maneja el registro de nuevos usuarios, diferenciando entre roles
-    y creando el perfil apropiado.
+    Serializador de registro personalizado que maneja roles y perfiles,
+    y es 100% compatible con el flujo de dj-rest-auth.
     """
-    password2 = serializers.CharField(style={'input_type': 'password'}, write_only=True)
-    
-    # Campos extra del perfil de operador
-    organization_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    rif_type = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    rif_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    role = serializers.CharField(max_length=10)
+    organization_name = serializers.CharField(required=False, allow_blank=True)
+    rif_type = serializers.CharField(required=False, allow_blank=True)
+    rif_number = serializers.CharField(required=False, allow_blank=True)
 
-    class Meta:
-        model = CustomUser
-        fields = [
-            'email', 'username', 'first_name', 'last_name', 'password', 'password2', 
-            'role', 'organization_name', 'rif_type', 'rif_number'
-        ]
-        extra_kwargs = {'password': {'write_only': True}}
-
-    def validate(self, data):
-        if data['password'] != data['password2']:
-            raise serializers.ValidationError({'password': 'Las contraseñas no coinciden.'})
-        
-        if data.get('role') == 'OPERATOR':
-            if not data.get('organization_name') or not data.get('rif_type') or not data.get('rif_number'):
-                raise serializers.ValidationError("Para operadores, se requiere nombre de organización, tipo y número de RIF.")
-        
+    def get_cleaned_data(self):
+        data = super().get_cleaned_data()
+        data.update({
+            'role': self.validated_data.get('role', 'TRAVELER'),
+            'organization_name': self.validated_data.get('organization_name', ''),
+            'rif_type': self.validated_data.get('rif_type', ''),
+            'rif_number': self.validated_data.get('rif_number', ''),
+            'first_name': self.validated_data.get('first_name', ''),
+            'last_name': self.validated_data.get('last_name', ''),
+        })
         return data
 
-    def create(self, validated_data):
-        # Extraemos los datos del perfil
-        organization_name = validated_data.pop('organization_name', None)
-        rif_type = validated_data.pop('rif_type', None)
-        rif_number = validated_data.pop('rif_number', None)
-        validated_data.pop('password2')
+    def save(self, request):
+        user = super().save(request)
 
-        # create_user se encarga de hashear la contraseña
-        user = CustomUser.objects.create_user(**validated_data)
+        # --- CORRECCIÓN CLAVE ---
+        # Forzamos la activación del usuario inmediatamente después de crearlo.
+        # Esto soluciona el error de "token inválido" en el login.
         user.is_active = True
+        user.role = self.cleaned_data.get('role')
+        user.first_name = self.cleaned_data.get('first_name')
+        user.last_name = self.cleaned_data.get('last_name')
         user.save()
 
-        # Creamos el perfil basado en el rol
+        # Creamos el perfil correspondiente basado en el rol
         if user.role == 'OPERATOR':
             OperatorProfile.objects.create(
                 user=user,
-                organization_name=organization_name,
-                rif_type=rif_type,
-                rif_number=rif_number
+                organization_name=self.cleaned_data.get('organization_name'),
+                rif_type=self.cleaned_data.get('rif_type'),
+                rif_number=self.cleaned_data.get('rif_number')
             )
         elif user.role == 'TRAVELER':
             TravelerProfile.objects.create(user=user)
         
         return user
 
-# --- Serializers para visualizar perfiles ---
-
+# --- Serializers para visualizar perfiles (sin cambios) ---
 class OperatorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = OperatorProfile
@@ -75,3 +67,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'operatorprofile', 'travelerprofile']
+

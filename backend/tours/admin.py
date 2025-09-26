@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Tag, TourPackage, PackageImage, Review
+from .models import Tag, TourPackage, PackageImage, Review, IncludedItem
 
 # -----------------------------------------------------------------------------
 # Inline Admin Models
@@ -53,5 +53,6 @@ class ReviewAdmin(admin.ModelAdmin):
     search_fields = ('comment', 'traveler__user__email')
 
 # Registramos los modelos más simples de la forma tradicional
+admin.site.register(IncludedItem)
 admin.site.register(Tag)
 

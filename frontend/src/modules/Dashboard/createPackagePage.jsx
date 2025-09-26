@@ -18,19 +18,28 @@ function CreatePackagePage() {
     const [tags, setTags] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
     const [includes, setIncludes] = useState(['']);
+    const [availableIncludes, setAvailableIncludes] = useState([]); // Lista de ítems desde la API
+    const [selectedIncludes, setSelectedIncludes] = useState([]); // IDs de ítems seleccionados
     const [mainImage, setMainImage] = useState(null);
     const [galleryImages, setGalleryImages] = useState([]);
 
+
     useEffect(() => {
-        const fetchTags = async () => {
+        const fetchInitialData = async () => {
             try {
-                const response = await axios.get('http://localhost:8000/api/tags/');
-                setTags(response.data);
+                // Hacemos ambas peticiones en paralelo para más eficiencia
+                const [tagsResponse, includesResponse] = await Promise.all([
+                    axios.get('http://localhost:8000/api/tags/'),
+                    axios.get('http://localhost:8000/api/included-items/')
+                ]);
+                setTags(tagsResponse.data);
+                setAvailableIncludes(includesResponse.data);
             } catch (err) {
-                console.error("No se pudieron cargar las etiquetas", err);
+                console.error("No se pudieron cargar los datos iniciales", err);
+                setError("No se pudieron cargar las opciones para el formulario.");
             }
         };
-        fetchTags();
+        fetchInitialData();
     }, []);
 
     const handleTagChange = (tagId) => {
@@ -39,13 +48,11 @@ function CreatePackagePage() {
         );
     };
 
-    const handleIncludeChange = (index, value) => {
-        const newIncludes = [...includes];
-        newIncludes[index] = value;
-        setIncludes(newIncludes);
+    const handleIncludeChange = (itemId) => {
+        setSelectedIncludes(prev => 
+            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+        );
     };
-    const addInclude = () => setIncludes([...includes, '']);
-    const removeInclude = (index) => setIncludes(includes.filter((_, i) => i !== index));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -55,14 +62,14 @@ function CreatePackagePage() {
         formData.append('title', title);
         formData.append('description', description);
         formData.append('location', location);
-        formData.append('destination', location); // Placeholder
+        formData.append('destination', destination);
         formData.append('price', price);
         formData.append('duration_days', duration);
-        formData.append('meeting_point', 'Por definir'); // Placeholder
-        formData.append('meeting_time', '12:00:00'); // Placeholder
+        formData.append('meeting_point', 'Por definir');
+        formData.append('meeting_time', '12:00:00');
         
-        formData.append('what_is_included', JSON.stringify(includes.filter(item => item)));
         selectedTags.forEach(tagId => formData.append('tag_ids', tagId));
+        selectedIncludes.forEach(itemId => formData.append('included_item_ids', itemId));
 
         if (mainImage) formData.append('main_image', mainImage);
         galleryImages.forEach(image => formData.append('gallery_images', image));
@@ -86,30 +93,33 @@ function CreatePackagePage() {
             <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">Crear Nuevo Paquete Turístico</h1>
             <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8">
                 
-                {/* --- SECCIÓN DE INFORMACIÓN BÁSICA --- */}
                 <fieldset className="space-y-4">
                     <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">Información Básica</legend>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label htmlFor="title" className="block text-sm font-medium text-gray-700">Título del Paquete</label>
-                            <input type="text" name="title" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"/>
+                            <label htmlFor="title">Título del Paquete</label>
+                            <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
                         </div>
                         <div>
-                            <label htmlFor="location" className="block text-sm font-medium text-gray-700">Ubicación (Estado)</label>
-                            <input type="text" name="location" id="location" value={location} onChange={(e) => setLocation(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                            <label htmlFor="location">Ubicación (Región/Estado)</label>
+                            <input type="text" id="location" value={location} onChange={(e) => setLocation(e.target.value)} required />
                         </div>
-                         <div>
-                            <label htmlFor="price" className="block text-sm font-medium text-gray-700">Precio Base (USD)</label>
-                            <input type="number" name="price" id="price" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                        <div>
+                            <label htmlFor="destination">Destino Específico (Ciudad/Parque)</label>
+                            <input type="text" id="destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
                         </div>
-                         <div>
-                            <label htmlFor="duration_days" className="block text-sm font-medium text-gray-700">Duración (días)</label>
-                            <input type="number" name="duration_days" id="duration_days" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                        <div>
+                            <label htmlFor="price">Precio Base (USD)</label>
+                            <input type="number" id="price" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
+                        </div>
+                        <div>
+                            <label htmlFor="duration_days">Duración (días)</label>
+                            <input type="number" id="duration_days" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} required />
                         </div>
                     </div>
                     <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción Larga</label>
-                        <textarea name="description" id="description" rows="4" value={description} onChange={(e) => setDescription(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                        <label htmlFor="description">Descripción Larga</label>
+                        <textarea id="description" rows="4" value={description} onChange={(e) => setDescription(e.target.value)} required></textarea>
                     </div>
                 </fieldset>
 
@@ -139,23 +149,23 @@ function CreatePackagePage() {
                     </div>
                 </fieldset>
 
+                {/* --- SECCIÓN 'QUÉ INCLUYE' --- */}
                 <fieldset>
                     <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">¿Qué Incluye el Paquete?</legend>
-                    <div className="space-y-2">
-                        {includes.map((item, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                                <input type="text" value={item} onChange={(e) => handleIncludeChange(index, e.target.value)} placeholder={`Elemento ${index + 1}`} className="w-full p-2 border border-gray-300 rounded-md"/>
-                                <button type="button" onClick={() => removeInclude(index)} className="text-red-500 hover:text-red-700 p-1"><XIcon className="w-5 h-5"/></button>
-                            </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+                        {availableIncludes.map(item => (
+                            <label key={item.id} className="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" checked={selectedIncludes.includes(item.id)} onChange={() => handleIncludeChange(item.id)} className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/>
+                                <span className="text-sm text-gray-700">{item.name}</span>
+                            </label>
                         ))}
                     </div>
-                    <button type="button" onClick={addInclude} className="mt-2 text-sm font-semibold text-orange-600 hover:text-orange-800">+ Añadir elemento</button>
                 </fieldset>
 
                 {error && <p className="text-red-500 text-center bg-red-100 p-3 rounded-md">{error}</p>}
                 
                 <div className="text-right pt-4">
-                    <button type="submit" className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-colors shadow-lg transform hover:scale-105">
+                    <button type="submit" className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600">
                         Publicar Paquete
                     </button>
                 </div>

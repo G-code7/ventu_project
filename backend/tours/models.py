@@ -20,6 +20,16 @@ class Tag(models.Model):
         verbose_name = "Etiqueta"
         verbose_name_plural = "Etiquetas"
 
+class IncludedItem(models.Model):
+    """Un ítem que puede estar incluido en un paquete (ej. Transporte, Almuerzo)."""
+    name = models.CharField(max_length=100, unique=True, verbose_name="Nombre del Ítem")
+    
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Ítem Incluido"
+        verbose_name_plural = "Ítems Incluidos"
 
 # --- Modelo Principal de Paquetes ---
 
@@ -56,18 +66,19 @@ class TourPackage(models.Model):
         verbose_name="Precios Adicionales",
         help_text="Ejemplo: {'niños': 50.00, 'tercera_edad': 45.00}"
     )
-    
-    # Para listas como "incluye", "no incluye" e "itinerario", JSONField es perfecto.
-    # Es flexible y fácil de consumir desde el frontend de React.
-    what_is_included = models.JSONField(
-        default=list, 
-        verbose_name="Qué Incluye",
-        help_text="Una lista de strings. Ejemplo: ['Transporte', 'Almuerzo', 'Guía']"
+    # Qué incluye y qué no
+
+    what_is_included = models.ManyToManyField(
+        IncludedItem, 
+        blank=True, 
+        related_name="packages_included", 
+        verbose_name="Qué Incluye"
     )
-    what_is_not_included = models.JSONField(
-        default=list, 
-        verbose_name="Qué No Incluye",
-        help_text="Una lista de strings. Ejemplo: ['Bebidas alcohólicas', 'Propinas']"
+    what_is_not_included = models.ManyToManyField(
+        IncludedItem, 
+        blank=True, 
+        related_name="packages_not_included",
+        verbose_name="Qué No Incluye"
     )
     itinerary = models.JSONField(
         blank=True, null=True, 

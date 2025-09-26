@@ -1,5 +1,3 @@
-console.log("--- TAILWIND CONFIG LOADED! Si ves este mensaje, Vite está leyendo este archivo. ---");
-
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [

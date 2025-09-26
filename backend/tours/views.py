@@ -1,27 +1,62 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
-from .models import TourPackage, Tag, Review, PackageImage
-from .serializers import TourPackageSerializer, TagSerializer, ReviewSerializer
+from .models import TourPackage, Tag, Review, PackageImage, IncludedItem
+from .serializers import TourPackageSerializer, TagSerializer, ReviewSerializer, IncludedItemSerializer 
 from .permissions import IsOwnerOrReadOnly
 from .filters import TourPackageFilter
 
 class TourPackageViewSet(viewsets.ModelViewSet):
-    queryset = TourPackage.objects.filter(is_active=True)
     serializer_class = TourPackageSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filterset_class = TourPackageFilter
 
-    def perform_create(self, serializer):
-        serializer.save(operator=self.request.user)
+    def get_queryset(self):
+        """
+        Sobrescribimos para mostrar a los operadores sus paquetes inactivos,
+        pero ocultarlos para el resto de usuarios.
+        """
+        user = self.request.user
+        if user.is_authenticated and user.role == 'OPERATOR':
+            # Si el usuario es un operador, le mostramos todos sus paquetes
+            return TourPackage.objects.filter(operator=user)
+        
+        # Para todos los demás, solo mostramos los paquetes activos
+        return TourPackage.objects.filter(is_active=True)
+    
+    # ... (después de tu método create)
 
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        if response.status_code == status.HTTP_201_CREATED:
-            tour_package = TourPackage.objects.get(id=response.data['id'])
-            if request.FILES.get('main_image'):
-                PackageImage.objects.create(tour_package=tour_package, image=request.FILES['main_image'], is_main_image=True)
-            for image_file in request.FILES.getlist('gallery_images'):
-                PackageImage.objects.create(tour_package=tour_package, image=image_file, is_main_image=False)
+    def update(self, request, *args, **kwargs):
+        """
+        Sobrescribimos para manejar la actualización de imágenes.
+        """
+        # Primero, ejecutamos la lógica de actualización normal del ModelViewSet
+        response = super().update(request, *args, **kwargs)
+        
+        if response.status_code == status.HTTP_200_OK:
+            tour_package = self.get_object() # Obtenemos la instancia del paquete
+
+            # 1. Manejar la imagen principal
+            if 'main_image' in request.FILES:
+                # Eliminamos la imagen principal anterior, si existe
+                PackageImage.objects.filter(tour_package=tour_package, is_main_image=True).delete()
+                # Creamos la nueva
+                PackageImage.objects.create(
+                    tour_package=tour_package, 
+                    image=request.FILES['main_image'], 
+                    is_main_image=True
+                )
+
+            # 2. Manejar las imágenes de la galería (las añade, no las reemplaza)
+            # Para un reemplazo completo, primero se deberían borrar las anteriores.
+            # Esta lógica es más simple y permite añadir más imágenes.
+            if 'gallery_images' in request.FILES:
+                for image_file in request.FILES.getlist('gallery_images'):
+                    PackageImage.objects.create(
+                        tour_package=tour_package, 
+                        image=image_file, 
+                        is_main_image=False
+                    )
+
         return response
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -35,3 +70,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     def perform_create(self, serializer):
         serializer.save(traveler=self.request.user)
+
+class IncludedItemViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet para listar los ítems que pueden ser incluidos en un paquete.
+    """
+    queryset = IncludedItem.objects.all()
+    serializer_class = IncludedItemSerializer # <-- Necesitaremos crear este serializer
+    permission_classes = [permissions.AllowAny]

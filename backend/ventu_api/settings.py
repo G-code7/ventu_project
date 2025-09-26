@@ -144,15 +144,17 @@ REST_FRAMEWORK = {
 REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_HTTPONLY': False,
+    'REGISTER_SERIALIZER': 'users.serializers.UserRegistrationSerializer',
     'USER_DETAILS_SERIALIZER': 'users.serializers.UserProfileSerializer',
 }
 
+
 # --- Configuración de django-allauth --
-ACCOUNT_AUTHENTICATION_METHOD = 'email' 
-ACCOUNT_EMAIL_REQUIRED = True           
-ACCOUNT_USERNAME_REQUIRED = False       
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True     
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_UNIQUE_EMAIL = True
 LOGIN_URL = '/accounts/login/'
 
 # --- CONFIGURACIÓN DE CORS ---
