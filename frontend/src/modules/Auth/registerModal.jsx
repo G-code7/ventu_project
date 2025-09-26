@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Modal from '../Shared/modal';
-// Ya no necesitamos 'useAuth' aquí porque el registro no inicia sesión.
+import { axiosInstance } from './authContext';
 
 function RegisterModal({ isOpen, onClose, onLoginClick }) {
     const [role, setRole] = useState('TRAVELER');
@@ -25,7 +24,7 @@ function RegisterModal({ isOpen, onClose, onLoginClick }) {
         }
 
         try {
-            await axios.post('http://localhost:8000/api/auth/registration/', data);
+            await axiosInstance.post('/auth/registration/', data);
             setSuccessMessage('¡Registro exitoso! Por favor, inicia sesión para continuar.');
         } catch (err) {
             const errorData = err.response?.data || {};

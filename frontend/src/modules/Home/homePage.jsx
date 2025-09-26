@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
+import { axiosInstance } from '../Auth/authContext';
 import Hero from './hero';
 import FeaturedDestinations from './featuredDestinations';
 import Section from '../Layout/section';
@@ -14,7 +13,7 @@ function HomePage() {
   useEffect(() => {
     const fetchTours = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/tours/');
+        const response = await axiosInstance.get('/tours/');
         setTours(response.data);
       } catch (err) {
         setError('No se pudo cargar la información.');

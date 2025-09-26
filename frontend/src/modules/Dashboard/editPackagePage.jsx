@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../Auth/authContext';
+import { axiosInstance } from '../Auth/authContext';
 import { XIcon } from '../Shared/icons';
 
 function EditPackagePage() {
     const navigate = useNavigate();
     const { packageId } = useParams();
-    const { authTokens } = useAuth();
     const [error, setError] = useState('');
     
     // Estados completos del formulario (como en createPackagePage)
@@ -24,9 +23,7 @@ function EditPackagePage() {
     useEffect(() => {
         const fetchPackageData = async () => {
             try {
-                const response = await axios.get(`http://localhost:8000/api/tours/${packageId}/`, {
-                    headers: { 'Authorization': `Bearer ${authTokens.access}` }
-                });
+                const response = await axiosInstance.get(`/tours/${packageId}/`);
                 const data = response.data;
                 
                 // --- MEJORA: Poblamos TODOS los estados del formulario ---
@@ -46,7 +43,7 @@ function EditPackagePage() {
         const fetchTags = async () => {
             // La lógica para cargar todas las etiquetas disponibles es la misma
             try {
-                const response = await axios.get('http://localhost:8000/api/tags/');
+                const response = await axiosInstance.get('/tags/');
                 setTags(response.data);
             } catch (err) {
                 console.error("No se pudieron cargar las etiquetas", err);
@@ -54,7 +51,7 @@ function EditPackagePage() {
         };
         fetchPackageData();
         fetchTags();
-    }, [packageId, authTokens]);
+    }, [packageId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -62,7 +59,7 @@ function EditPackagePage() {
 
         const formData = new FormData();
         
-        // --- Agregamos TODOS los campos al formulario ---
+        // --- Agregamos los campos al formulario ---
         formData.append('title', title);
         formData.append('description', description);
         formData.append('location', location);
@@ -77,11 +74,8 @@ function EditPackagePage() {
         // Aquí podrías añadir la lógica para actualizar imágenes si el usuario selecciona nuevas
         
         try {
-            await axios.patch(`http://localhost:8000/api/tours/${packageId}/`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'Authorization': `Bearer ${authTokens.access}`
-                }
+            await axiosInstance.patch(`/tours/${packageId}/`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
             navigate('/me');
         } catch (err) {

@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Auth/authContext';
+import { axiosInstance } from '../Auth/authContext';
 import { XIcon } from '../Shared/icons';
 
 function CreatePackagePage() {
     const navigate = useNavigate();
-    const { authTokens } = useAuth();
     const [error, setError] = useState('');
-    
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
@@ -16,10 +13,9 @@ function CreatePackagePage() {
     const [price, setPrice] = useState('');
     const [duration, setDuration] = useState(1);
     const [tags, setTags] = useState([]);
+    const [availableIncludes, setAvailableIncludes] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
-    const [includes, setIncludes] = useState(['']);
-    const [availableIncludes, setAvailableIncludes] = useState([]); // Lista de ítems desde la API
-    const [selectedIncludes, setSelectedIncludes] = useState([]); // IDs de ítems seleccionados
+    const [selectedIncludes, setSelectedIncludes] = useState([]);
     const [mainImage, setMainImage] = useState(null);
     const [galleryImages, setGalleryImages] = useState([]);
 
@@ -27,32 +23,31 @@ function CreatePackagePage() {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                // Hacemos ambas peticiones en paralelo para más eficiencia
                 const [tagsResponse, includesResponse] = await Promise.all([
-                    axios.get('http://localhost:8000/api/tags/'),
-                    axios.get('http://localhost:8000/api/included-items/')
+                    axiosInstance.get('/tags/'),
+                    axiosInstance.get('/included-items/')
                 ]);
                 setTags(tagsResponse.data);
                 setAvailableIncludes(includesResponse.data);
             } catch (err) {
                 console.error("No se pudieron cargar los datos iniciales", err);
-                setError("No se pudieron cargar las opciones para el formulario.");
+                setError("No se pudieron cargar las opciones. La sesión puede haber expirado.");
             }
         };
         fetchInitialData();
     }, []);
 
-    const handleTagChange = (tagId) => {
-        setSelectedTags(prev => 
-            prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
-        );
-    };
+    // const handleTagChange = (tagId) => {
+    //     setSelectedTags(prev => 
+    //         prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+    //     );
+    // };
 
-    const handleIncludeChange = (itemId) => {
-        setSelectedIncludes(prev => 
-            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
-        );
-    };
+    // const handleIncludeChange = (itemId) => {
+    //     setSelectedIncludes(prev => 
+    //         prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    //     );
+    // };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -75,11 +70,8 @@ function CreatePackagePage() {
         galleryImages.forEach(image => formData.append('gallery_images', image));
 
         try {
-            await axios.post('http://localhost:8000/api/tours/', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'Authorization': `Bearer ${authTokens.access}`
-                }
+            await axiosInstance.post('/tours/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
             navigate('/me');
         } catch (err) {
@@ -92,38 +84,36 @@ function CreatePackagePage() {
         <div className="container mx-auto p-4 md:p-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">Crear Nuevo Paquete Turístico</h1>
             <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8">
-                
                 <fieldset className="space-y-4">
                     <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">Información Básica</legend>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label htmlFor="title">Título del Paquete</label>
-                            <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                            <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                         </div>
                         <div>
                             <label htmlFor="location">Ubicación (Región/Estado)</label>
-                            <input type="text" id="location" value={location} onChange={(e) => setLocation(e.target.value)} required />
+                            <input type="text" id="location" value={location} onChange={(e) => setLocation(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                         </div>
                         <div>
                             <label htmlFor="destination">Destino Específico (Ciudad/Parque)</label>
-                            <input type="text" id="destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
+                            <input type="text" id="destination" value={destination} onChange={(e) => setDestination(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                         </div>
                         <div>
                             <label htmlFor="price">Precio Base (USD)</label>
-                            <input type="number" id="price" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
+                            <input type="number" id="price" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                         </div>
                         <div>
                             <label htmlFor="duration_days">Duración (días)</label>
-                            <input type="number" id="duration_days" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} required />
+                            <input type="number" id="duration_days" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                         </div>
                     </div>
                     <div>
                         <label htmlFor="description">Descripción Larga</label>
-                        <textarea id="description" rows="4" value={description} onChange={(e) => setDescription(e.target.value)} required></textarea>
+                        <textarea id="description" rows="4" value={description} onChange={(e) => setDescription(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
                     </div>
                 </fieldset>
 
-                {/* --- SECCIÓN DE IMÁGENES --- */}
                 <fieldset className="space-y-4">
                      <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">Imágenes</legend>
                      <div>
@@ -136,7 +126,6 @@ function CreatePackagePage() {
                      </div>
                 </fieldset>
                 
-                {/* --- SECCIÓN DE ETIQUETAS (TAGS) --- */}
                 <fieldset>
                     <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">Etiquetas</legend>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
@@ -149,7 +138,6 @@ function CreatePackagePage() {
                     </div>
                 </fieldset>
 
-                {/* --- SECCIÓN 'QUÉ INCLUYE' --- */}
                 <fieldset>
                     <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">¿Qué Incluye el Paquete?</legend>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">

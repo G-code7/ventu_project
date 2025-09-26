@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Modal from '../Shared/modal';
-import { useAuth } from './authContext';
+import { useAuth, axiosInstance } from './authContext';
 
 function LoginModal({ isOpen, onClose, onRegisterClick }) {
     const [error, setError] = useState('');
@@ -12,34 +11,27 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
         setError('');
         const data = Object.fromEntries(new FormData(e.target).entries());
         try {
-            const response = await axios.post('http://localhost:8000/api/auth/login/', data);
+            const response = await axiosInstance.post('/auth/login/', data);
             
-            // dj-rest-auth devuelve los tokens y los datos del usuario en una sola respuesta.
-            // Esto hace la lógica más limpia y eficiente.
             const tokens = {
                 access: response.data.access_token,
                 refresh: response.data.refresh_token
             };
             const userData = response.data.user;
-
             loginUser(tokens, userData);
             onClose();
         } catch (err) {
-            // --- MANEJO DE ERRORES MEJORADO ---
-            console.error("Error de login:", err.response?.data); // Log para depuración interna
+            console.error("Error de login:", err.response?.data); 
             const errorData = err.response?.data;
             let errorMessage = "Ocurrió un error inesperado. Intenta de nuevo más tarde.";
 
             if (errorData) {
-                // dj-rest-auth suele enviar 'non_field_errors' para credenciales inválidas
                 if (errorData.non_field_errors) {
                     errorMessage = errorData.non_field_errors[0];
                 } 
-                // Si el error es sobre un campo específico (ej. email)
                 else if (errorData.email) {
                     errorMessage = `Email: ${errorData.email[0]}`;
                 }
-                // Si el error es sobre la contraseña
                 else if (errorData.password) {
                     errorMessage = `Contraseña: ${errorData.password[0]}`;
                 }
@@ -47,7 +39,6 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
             setError(errorMessage);
         }
     };
-
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Bienvenido de vuelta">
             <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { axiosInstance } from '../Auth/authContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../Auth/authContext';
+import { axiosInstance } from '../Auth/authContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { EditIcon, TrashIcon } from '../Shared/icons';
 
@@ -33,51 +32,38 @@ const PackageList = ({ packages, onDelete }) => (
 
 function OperatorDashboard() {
     const [dashboardData, setDashboardData] = useState([]);
-    const [packages, setPackages] = useState([]); // <-- NUEVO: Estado para los paquetes
-    const { authTokens } = useAuth();
+    const [packages, setPackages] = useState([]);
     const navigate = useNavigate();
 
-    // --- MEJORADO: Usamos useCallback para evitar re-crear la función ---
     const fetchPackages = useCallback(async () => {
-        if (!authTokens) return;
         try {
-            const response = await axiosInstance.get('/tours/', {
-                headers: { 'Authorization': `Bearer ${authTokens.access}` }
-            });
+            const response = await axiosInstance.get('/tours/');
             setPackages(response.data);
         } catch (error) {
             console.error("Error al cargar los paquetes:", error);
         }
-    }, [authTokens]);
+    }, []);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
-            if (!authTokens) return;
             try {
-                const response = await axiosInstance.get('/users/dashboard/', {
-                    headers: { 'Authorization': `Bearer ${authTokens.access}` }
-                });
+                const response = await axiosInstance.get('/users/dashboard/');
                 setDashboardData(response.data);
             } catch (error) {
                 console.error("Error al cargar los datos del dashboard:", error);
             }
         };
-
         fetchDashboardData();
         fetchPackages();
-    }, [authTokens, fetchPackages]);
-
-    // --- manejar la eliminación ---
+    }, [fetchPackages]);
+    
     const handleDeletePackage = async (packageId) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar este paquete? Esta acción no se puede deshacer.')) {
+        if (window.confirm('¿Estás seguro de que quieres eliminar este paquete?')) {
             try {
-                await axiosInstance.delete(`/tours/${packageId}/`, {
-                    headers: { 'Authorization': `Bearer ${authTokens.access}` }
-                });
+                await axiosInstance.delete(`/tours/${packageId}/`);
                 setPackages(prevPackages => prevPackages.filter(p => p.id !== packageId));
             } catch (error) {
                 console.error("Error al eliminar el paquete:", error);
-                alert('No se pudo eliminar el paquete.');
             }
         }
     };
@@ -111,7 +97,6 @@ function OperatorDashboard() {
             </div>
 
             {/* Aquí irían otras secciones del CRM como la lista de paquetes */}
-            {/* --- Lista de paquetes --- */}
             <PackageList packages={packages} onDelete={handleDeletePackage} />
         </div>
     );

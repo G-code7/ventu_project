@@ -31,7 +31,6 @@ class OperatorDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # Nos aseguramos de que el usuario sea un operador
         if not request.user.role == 'OPERATOR':
             return Response(
                 {'error': 'Acceso denegado. Solo para operadores.'}, 
@@ -39,19 +38,16 @@ class OperatorDashboardView(APIView):
             )
 
         # --- Lógica del gráfico ---
-        operator_profile = request.user.operatorprofile
+        operator_user = request.user
         data = []
         today = datetime.today()
 
         # Rango en los ultimos 6 meses
         for i in range(5, -1, -1):
-            # Calculamos el mes que estamos procesando
             month_date = today - relativedelta(months=i)
-            month_name = month_date.strftime("%b %Y") # Formato: "Sep 2025"
-
-            # n° de paquetes creador por operador
+            month_name = month_date.strftime("%b %Y")
             packages_in_month = TourPackage.objects.filter(
-                operator=operator_profile,
+                operator=operator_user,
                 created_at__year=month_date.year,
                 created_at__month=month_date.month
             ).count()
