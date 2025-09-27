@@ -8,7 +8,7 @@ const PackageList = ({ packages, onDelete }) => (
     <div className="bg-white p-6 rounded-lg shadow-md">
         <h3 className="text-xl font-semibold mb-4">Mis Paquetes Turísticos</h3>
         <div className="space-y-4">
-            {packages.length > 0 ? packages.map(pkg => (
+            {packages && packages.length > 0 ? packages.map(pkg => (
                 <div key={pkg.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
                     <div>
                         <p className="font-bold text-gray-800">{pkg.title}</p>
@@ -53,10 +53,11 @@ function OperatorDashboard() {
                 console.error("Error al cargar los datos del dashboard:", error);
             }
         };
+        
         fetchDashboardData();
         fetchPackages();
     }, [fetchPackages]);
-    
+
     const handleDeletePackage = async (packageId) => {
         if (window.confirm('¿Estás seguro de que quieres eliminar este paquete?')) {
             try {
@@ -79,8 +80,6 @@ function OperatorDashboard() {
                     + Crear Nuevo Paquete
                 </button>
             </div>
-
-            {/* Sección del Gráfico*/}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="text-xl font-semibold mb-4">Actividad Reciente</h3>
                  <ResponsiveContainer width="100%" height={300}>
@@ -95,12 +94,8 @@ function OperatorDashboard() {
                     </LineChart>
                 </ResponsiveContainer>
             </div>
-
-            {/* Aquí irían otras secciones del CRM como la lista de paquetes */}
             <PackageList packages={packages} onDelete={handleDeletePackage} />
         </div>
     );
 }
-
 export default OperatorDashboard;
-

@@ -14,8 +14,8 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
             const response = await axiosInstance.post('/auth/login/', data);
             
             const tokens = {
-                access: response.data.access_token,
-                refresh: response.data.refresh_token
+                access: response.data.access,
+                refresh: response.data.refresh
             };
             const userData = response.data.user;
             loginUser(tokens, userData);

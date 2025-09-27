@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
 
     const loginUser = useCallback((tokens, userData) => {
         setAuthTokens(tokens);
-        setUser(jwtDecode(tokens.access));
+        setUser(userData || jwtDecode(tokens.access));
         localStorage.setItem('authTokens', JSON.stringify(tokens));
         axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${tokens.access}`;
     }, []);
@@ -38,14 +38,11 @@ export function AuthProvider({ children }) {
                     const refreshToken = JSON.parse(localStorage.getItem('authTokens'))?.refresh;
                     if (refreshToken) {
                         try {
-                            const response = await axios.post('http://localhost:8000/api/token/refresh/', {
+                            const response = await axiosInstance.post('/token/refresh/', {
                                 refresh: refreshToken
                             });
                             const newTokens = { access: response.data.access, refresh: refreshToken };
-                            
-                            const decodedUser = jwtDecode(newTokens.access);
-                            loginUser(newTokens, decodedUser);
-                            
+                            loginUser(newTokens);
                             originalRequest.headers['Authorization'] = `Bearer ${newTokens.access}`;
                             return axiosInstance(originalRequest);
                         } catch (refreshError) {
@@ -71,7 +68,7 @@ export function AuthProvider({ children }) {
         setLoadingAuth(false);
     }, []);
     
-    const contextData = { user, authTokens, loginUser, logoutUser, loadingAuth, axiosInstance };
+    const contextData = { user, authTokens, loginUser, logoutUser, loadingAuth };
     
     return <AuthContext.Provider value={contextData}>{children}</AuthContext.Provider>;
 }
