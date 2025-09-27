@@ -22,8 +22,6 @@ class TourPackageViewSet(viewsets.ModelViewSet):
         
         # Para todos los demás, solo mostramos los paquetes activos
         return TourPackage.objects.filter(is_active=True)
-    
-    # ... (después de tu método create)
 
     def update(self, request, *args, **kwargs):
         """
@@ -58,6 +56,39 @@ class TourPackageViewSet(viewsets.ModelViewSet):
                     )
 
         return response
+
+    def perform_create(self, serializer):
+        """Asigna automáticamente el operador al usuario autenticado"""
+        if self.request.user.role != 'OPERATOR':
+            raise serializers.ValidationError("Solo los operadores pueden crear paquetes turísticos.")
+        serializer.save(operator=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        """Maneja la creación con imágenes"""
+        # Crear el paquete primero
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        tour_package = serializer.instance
+        
+        # Manejar imágenes después de crear el paquete
+        if 'main_image' in request.FILES:
+            PackageImage.objects.create(
+                tour_package=tour_package, 
+                image=request.FILES['main_image'], 
+                is_main_image=True
+            )
+
+        if 'gallery_images' in request.FILES:
+            for image_file in request.FILES.getlist('gallery_images'):
+                PackageImage.objects.create(
+                    tour_package=tour_package, 
+                    image=image_file, 
+                    is_main_image=False
+                )
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()

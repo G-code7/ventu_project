@@ -35,6 +35,8 @@ class TourPackageSerializer(serializers.ModelSerializer):
     reviews = ReviewSerializer(many=True, read_only=True)
     operator_name = serializers.StringRelatedField(source='operator.organization_name', read_only=True)
     what_is_included = serializers.StringRelatedField(many=True, read_only=True)
+    itinerary = serializers.JSONField(required=False)
+    variable_prices = serializers.JSONField(required=False)
 
     # Al ESCRIBIR (POST/PUT), este campo aceptará una lista de IDs de tags.
     tag_ids = serializers.PrimaryKeyRelatedField(
@@ -51,8 +53,9 @@ class TourPackageSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'location', 'destination', 
             'price', 'duration_days', 'operator', 'operator_name', 
-            'tags', 'images', 'reviews', 'what_is_included', 'itinerary', 
-            'meeting_point', 'meeting_time', 'tag_ids', 'included_item_ids'
+            'tags', 'images', 'reviews', 'what_is_included', 'itinerary',
+            'meeting_point', 'meeting_time', 'variable_prices',
+            'tag_ids', 'included_item_ids'
         ]
         # El operador y las reseñas no se pueden asignar/modificar a través de este endpoint directamente.
         read_only_fields = ['operator', 'reviews']
