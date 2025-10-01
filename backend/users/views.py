@@ -62,3 +62,14 @@ class OperatorDashboardView(APIView):
             })
 
         return Response(data)
+    
+class OperatorPackagesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        if request.user.role != 'OPERATOR':
+            return Response({'error': 'Acceso denegado'}, status=403)
+        
+        packages = TourPackage.objects.filter(operator=request.user)
+        serializer = TourPackageSerializer(packages, many=True)
+        return Response(serializer.data)

@@ -7,6 +7,7 @@ import ProfilePage from "./modules/Profile/profilePage";
 import ProtectedRoute from "./modules/Auth/protectedRoute";
 import EditPackagePage from "./modules/Dashboard/editPackagePage";
 import CreatePackagePage from "./modules/Dashboard/createPackagePage";
+import TourDetailPage from "./modules/Tours/tourDetailPage";
 
 function App() {
   return (
@@ -27,6 +28,9 @@ function App() {
             element={<EditPackagePage />}
           />
         </Route>
+
+        {/* Ruta para la página de detalles del tour - Pública */}
+        <Route path="/tour/:tourId" element={<TourDetailPage />} />
       </Route>
     </Routes>
   );

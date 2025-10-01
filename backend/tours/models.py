@@ -1,4 +1,5 @@
 from django.db import models
+from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -37,8 +38,42 @@ class TourPackage(models.Model):
     """
     El modelo central que representa un paquete turístico.
     """
-    # Conectamos el paquete a nuestro modelo de usuario personalizado.
-    # Usamos 'limit_choices_to' para asegurar que solo los operadores puedan crear paquetes.
+    # Precio final calculado con comisión incluida
+    base_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Precio Base",
+        null=False,
+        default=Decimal('0.00')
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.10'),
+        verbose_name="Tasa de Comisión"
+    )
+    
+    # Propiedad en prueba!!!
+    @property
+    def final_price(self):
+        """Calcular precio final con comisión"""
+        if self.base_price is None:
+            return Decimal('0.00')
+
+    # Estado del paquete
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Borrador"
+        PENDING = "PENDING", "Pendiente de Aprobación"
+        PUBLISHED = "PUBLISHED", "Publicado"
+        REJECTED = "REJECTED", "Rechazado"
+    
+    status = models.CharField(
+        max_length=20, 
+        choices=Status.choices, 
+        default=Status.PUBLISHED
+    )
+
+    # Relación con el operador (usuario con rol 'OPERATOR')
     operator = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
@@ -59,7 +94,7 @@ class TourPackage(models.Model):
     duration_days = models.PositiveIntegerField(default=1, verbose_name="Duración (días)")
     
     # Precio y Capacidad
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio Base (Adulto)")
+    # price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio Base (Adulto)")
     # Usamos JSONField para precios variables (niños, etc.) para máxima flexibilidad.
     variable_prices = models.JSONField(
         blank=True, null=True, 

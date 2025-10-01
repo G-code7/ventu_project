@@ -12,7 +12,5 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         # Permisos de lectura (GET, HEAD, OPTIONS) se permiten a cualquiera.
         if request.method in permissions.SAFE_METHODS:
             return True
-
-        # Permisos de escritura (PUT, PATCH, DELETE) solo se conceden si
-        # el usuario que hace la petición es el mismo que el operador del paquete.
+        # Permisos de escritura solo se permiten al operador del paquete.
         return obj.operator == request.user

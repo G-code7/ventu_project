@@ -31,7 +31,7 @@ class TourPackageAdmin(admin.ModelAdmin):
     Personalización de la vista de administración para el modelo TourPackage.
     """
     # Campos que se mostrarán en la lista principal de paquetes
-    list_display = ('title', 'operator', 'location', 'price', 'is_active')
+    list_display = ('title', 'operator', 'location', 'base_price', 'is_active')
     
     # Filtros que aparecerán en la barra lateral derecha
     list_filter = ('is_active', 'location', 'operator')
@@ -41,6 +41,13 @@ class TourPackageAdmin(admin.ModelAdmin):
     
     # Añade la gestión de imágenes directamente en la página del paquete
     inlines = [PackageImageInline]
+
+    actions = ['mark_as_published']
+    
+    def mark_as_published(self, request, queryset):
+        updated = queryset.update(status='PUBLISHED')
+        self.message_user(request, f'{updated} tours marcados como publicados.')
+    mark_as_published.short_description = "Marcar los tours seleccionados como PUBLICADOS"
 
 
 @admin.register(Review)

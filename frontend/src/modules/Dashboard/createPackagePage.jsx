@@ -6,27 +6,41 @@ import { XIcon } from "../Shared/icons";
 function CreatePackagePage() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
-  const [destination, setDestination] = useState("");
-  const [price, setPrice] = useState("");
-  const [duration, setDuration] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  // Estados del formulario - SIN commission_rate
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    location: "",
+    destination: "",
+    base_price: "",
+    duration_days: 1,
+    meeting_point: "Por definir",
+    meeting_time: "12:00",
+  });
+
+  // Estados para relaciones
   const [tags, setTags] = useState([]);
   const [availableIncludes, setAvailableIncludes] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedIncludes, setSelectedIncludes] = useState([]);
-  const [mainImage, setMainImage] = useState(null);
-  const [galleryImages, setGalleryImages] = useState([]);
-  // --- //
-  const [meetingPoint, setMeetingPoint] = useState("Por definir");
-  const [meetingTime, setMeetingTime] = useState("12:00:00");
-  const [itinerary, setItinerary] = useState([{ day: "", description: "" }]);
+  const [whatIsNotIncluded, setWhatIsNotIncluded] = useState([]);
+
+  // Estados para arrays dinámicos
+  const [itinerary, setItinerary] = useState([{ day: 1, description: "" }]);
   const [variablePrices, setVariablePrices] = useState([
     { type: "", price: "" },
   ]);
-  const [whatIsNotIncluded, setWhatIsNotIncluded] = useState([]);
 
+  // Estados para archivos
+  const [mainImage, setMainImage] = useState(null);
+  const [galleryImages, setGalleryImages] = useState([]);
+
+  // Comisión fija - no editable
+  const COMMISSION_RATE = 0.1; // 10% fijo
+
+  // Cargar datos iniciales
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -37,15 +51,22 @@ function CreatePackagePage() {
         setTags(tagsResponse.data);
         setAvailableIncludes(includesResponse.data);
       } catch (err) {
-        console.error("No se pudieron cargar los datos iniciales", err);
-        setError(
-          "No se pudieron cargar las opciones. La sesión puede haber expirado."
-        );
+        console.error("Error cargando datos iniciales:", err);
+        setError("No se pudieron cargar las opciones. Verifica tu conexión.");
       }
     };
     fetchInitialData();
   }, []);
 
+  // Manejar cambios en campos simples
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // Manejar tags
   const handleTagChange = (tagId) => {
     setSelectedTags((prev) =>
       prev.includes(tagId)
@@ -54,6 +75,7 @@ function CreatePackagePage() {
     );
   };
 
+  // Manejar items incluidos
   const handleIncludeChange = (itemId) => {
     setSelectedIncludes((prev) =>
       prev.includes(itemId)
@@ -62,251 +84,277 @@ function CreatePackagePage() {
     );
   };
 
-  const addItineraryDay = () => {
-    setItinerary([...itinerary, { day: "", description: "" }]);
+  // Manejar items NO incluidos
+  const handleNotIncludeChange = (itemId) => {
+    setWhatIsNotIncluded((prev) =>
+      prev.includes(itemId)
+        ? prev.filter((id) => id !== itemId)
+        : [...prev, itemId]
+    );
   };
 
-  const updateItineraryDay = (index, field, value) => {
-    const updated = [...itinerary];
-    updated[index][field] = value;
-    setItinerary(updated);
+  // Itinerario - funciones optimizadas
+  const addItineraryDay = () => {
+    setItinerary((prev) => [
+      ...prev,
+      { day: prev.length + 1, description: "" },
+    ]);
+  };
+
+  const updateItineraryDay = (index, value) => {
+    setItinerary((prev) =>
+      prev.map((day, i) => (i === index ? { ...day, description: value } : day))
+    );
   };
 
   const removeItineraryDay = (index) => {
-    setItinerary(itinerary.filter((_, i) => i !== index));
+    if (itinerary.length > 1) {
+      setItinerary((prev) => prev.filter((_, i) => i !== index));
+    }
   };
 
-  // Función para precios variables
+  // Precios variables
   const addVariablePrice = () => {
-    setVariablePrices([...variablePrices, { type: "", price: "" }]);
+    setVariablePrices((prev) => [...prev, { type: "", price: "" }]);
   };
 
   const updateVariablePrice = (index, field, value) => {
-    const updated = [...variablePrices];
-    updated[index][field] = value;
-    setVariablePrices(updated);
+    setVariablePrices((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("location", location);
-    formData.append("destination", destination);
-    formData.append("price", price);
-    formData.append("duration_days", duration);
-    formData.append("meeting_point", "Por definir");
-    formData.append("meeting_time", "12:00:00");
-
-    // Itinerario como JSON
-    const itineraryObj = {};
-    itinerary.forEach((item, index) => {
-      if (item.day && item.description) {
-        itineraryObj[`Día ${index + 1}`] = item.description;
-      }
-    });
-    formData.append("itinerary", JSON.stringify(itineraryObj));
-
-    // Precios variables como JSON
-    const pricesObj = {};
-    variablePrices.forEach((item) => {
-      if (item.type && item.price) {
-        pricesObj[item.type] = parseFloat(item.price);
-      }
-    });
-    formData.append("variable_prices", JSON.stringify(pricesObj));
-
-    // Tags e includes
-    selectedTags.forEach((tagId) => formData.append("tag_ids", tagId));
-    selectedIncludes.forEach((itemId) =>
-      formData.append("included_item_ids", itemId)
-    );
-    whatIsNotIncluded.forEach((itemId) =>
-      formData.append("what_is_not_included", itemId)
-    );
-
-    // Imágenes
-    if (mainImage) formData.append("main_image", mainImage);
-    galleryImages.forEach((image) => formData.append("gallery_images", image));
-
-    try {
-      await axiosInstance.post("/tours/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      navigate("/me");
-    } catch (err) {
-      console.error("Error al crear el paquete:", err.response?.data);
-      setError(
-        "Hubo un error al crear el paquete. Revisa que todos los campos estén correctos."
-      );
+  const removeVariablePrice = (index) => {
+    if (variablePrices.length > 1) {
+      setVariablePrices((prev) => prev.filter((_, i) => i !== index));
     }
   };
+
+  // Envío del formulario - OPTIMIZADO
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const submitData = new FormData();
+
+      // 1. Campos básicos (NO incluir commission_rate - se maneja automáticamente en el backend)
+      Object.keys(formData).forEach((key) => {
+        submitData.append(key, formData[key]);
+      });
+
+      // 2. Itinerario como JSON válido
+      const itineraryObj = {};
+      itinerary.forEach((item, index) => {
+        if (item.description.trim()) {
+          itineraryObj[`Día ${index + 1}`] = item.description;
+        }
+      });
+      if (Object.keys(itineraryObj).length > 0) {
+        submitData.append("itinerary", JSON.stringify(itineraryObj));
+      }
+
+      // 3. Precios variables como JSON válido
+      const pricesObj = {};
+      variablePrices.forEach((item) => {
+        if (item.type && item.price) {
+          pricesObj[item.type] = parseFloat(item.price);
+        }
+      });
+      if (Object.keys(pricesObj).length > 0) {
+        submitData.append("variable_prices", JSON.stringify(pricesObj));
+      }
+
+      // 4. Relaciones
+      selectedTags.forEach((tagId) => submitData.append("tag_ids", tagId));
+      selectedIncludes.forEach((itemId) =>
+        submitData.append("included_item_ids", itemId)
+      );
+      whatIsNotIncluded.forEach((itemId) =>
+        submitData.append("what_is_not_included_ids", itemId)
+      );
+
+      // 5. Imágenes
+      if (mainImage) submitData.append("main_image", mainImage);
+      galleryImages.forEach((image) =>
+        submitData.append("gallery_images", image)
+      );
+
+      // 6. Enviar
+      const response = await axiosInstance.post("/tours/", submitData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      navigate("/me", {
+        state: { message: "Paquete creado exitosamente" },
+      });
+    } catch (err) {
+      console.error("Error creando paquete:", err.response?.data);
+      const errorMsg = err.response?.data
+        ? Object.values(err.response.data).flat().join(", ")
+        : "Error al crear el paquete. Verifica todos los campos.";
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const finalPrice = formData.base_price
+    ? (parseFloat(formData.base_price) / (1 - COMMISSION_RATE)).toFixed(2)
+    : 0;
 
   return (
     <div className="container mx-auto p-4 md:p-8">
       <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">
         Crear Nuevo Paquete Turístico
       </h1>
+
+      {/* Previsualización de precio*/}
+      {formData.base_price && (
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <p className="text-blue-800 font-semibold">
+            Precio final para clientes:{" "}
+            <span className="text-lg">${finalPrice}</span>
+            <span className="text-sm text-blue-600 ml-2">
+              (Base: ${formData.base_price} + Comisión: {COMMISSION_RATE * 100}
+              %)
+            </span>
+          </p>
+          <p className="text-xs text-blue-600 mt-1">
+            * La comisión del {COMMISSION_RATE * 100}% es fija y se aplica
+            automáticamente
+          </p>
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8"
       >
+        {/* Información Básica */}
         <fieldset className="space-y-4">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Información Básica
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="title">Título del Paquete</label>
-              <input
-                type="text"
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="location">Ubicación (Región/Estado)</label>
-              <input
-                type="text"
-                id="location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="destination">
-                Destino Específico (Ciudad/Parque)
-              </label>
-              <input
-                type="text"
-                id="destination"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="price">Precio Base (USD)</label>
-              <input
-                type="number"
-                id="price"
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="duration_days">Duración (días)</label>
-              <input
-                type="number"
-                id="duration_days"
-                min="1"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
+            {[
+              {
+                id: "title",
+                label: "Título del Paquete",
+                type: "text",
+                required: true,
+              },
+              {
+                id: "location",
+                label: "Ubicación (Región/Estado)",
+                type: "text",
+                required: true,
+              },
+              {
+                id: "destination",
+                label: "Destino Específico",
+                type: "text",
+                required: true,
+              },
+              {
+                id: "base_price",
+                label: "Precio Base (USD)",
+                type: "number",
+                step: "0.01",
+                required: true,
+              },
+              {
+                id: "duration_days",
+                label: "Duración (días)",
+                type: "number",
+                min: "1",
+                required: true,
+              },
+            ].map((field) => (
+              <div key={field.id}>
+                <label
+                  htmlFor={field.id}
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  {field.label}
+                </label>
+                <input
+                  type={field.type}
+                  id={field.id}
+                  value={formData[field.id]}
+                  onChange={(e) => handleInputChange(field.id, e.target.value)}
+                  required={field.required}
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                />
+              </div>
+            ))}
           </div>
+
           <div>
-            <label htmlFor="description">Descripción Larga</label>
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Descripción Larga
+            </label>
             <textarea
               id="description"
               rows="4"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formData.description}
+              onChange={(e) => handleInputChange("description", e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            ></textarea>
-          </div>
-        </fieldset>
-        <fieldset className="space-y-4">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Lugar y Hora de Encuentro
-          </legend>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label
-                htmlFor="meeting_point"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Lugar de Encuentro
-              </label>
-              <input
-                type="text"
-                id="meeting_point"
-                value={meetingPoint}
-                onChange={(e) => setMeetingPoint(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="meeting_time"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Hora de Encuentro
-              </label>
-              <input
-                type="time"
-                id="meeting_time"
-                value={meetingTime}
-                onChange={(e) => setMeetingTime(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-            </div>
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            />
           </div>
         </fieldset>
 
-        {/* Nueva sección: Itinerario */}
+        {/* Itinerario - VERSIÓN MEJORADA */}
         <fieldset className="space-y-4">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Itinerario Detallado
           </legend>
           {itinerary.map((day, index) => (
-            <div key={index} className="flex gap-4 items-start">
+            <div
+              key={index}
+              className="flex gap-4 items-start border rounded-lg p-4 bg-gray-50"
+            >
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Día {index + 1}
                 </label>
                 <textarea
                   value={day.description}
-                  onChange={(e) =>
-                    updateItineraryDay(index, "description", e.target.value)
-                  }
-                  placeholder={`Descripción del día ${index + 1}`}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  onChange={(e) => updateItineraryDay(index, e.target.value)}
+                  placeholder={`Describe las actividades del día ${index + 1}`}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                   rows="3"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => removeItineraryDay(index)}
-                className="mt-6 text-red-500 hover:text-red-700"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
+              {itinerary.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeItineraryDay(index)}
+                  className="mt-6 text-red-500 hover:text-red-700 p-2"
+                >
+                  <XIcon className="w-5 h-5" />
+                </button>
+              )}
             </div>
           ))}
           <button
             type="button"
             onClick={addItineraryDay}
-            className="text-orange-500 hover:text-orange-700 font-semibold"
+            className="w-full py-2 border-2 border-dashed border-orange-300 text-orange-500 hover:bg-orange-50 rounded-lg font-semibold"
           >
             + Añadir día al itinerario
           </button>
         </fieldset>
+
+        {/* Sección de Imágenes */}
         <fieldset className="space-y-4">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Imágenes
@@ -344,6 +392,7 @@ function CreatePackagePage() {
           </div>
         </fieldset>
 
+        {/* Etiquetas */}
         <fieldset>
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Etiquetas
@@ -366,6 +415,7 @@ function CreatePackagePage() {
           </div>
         </fieldset>
 
+        {/* Qué Incluye */}
         <fieldset>
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             ¿Qué Incluye el Paquete?
@@ -387,7 +437,8 @@ function CreatePackagePage() {
             ))}
           </div>
         </fieldset>
-                {/* Nueva sección: Qué NO Incluye */}
+
+        {/* Qué NO Incluye */}
         <fieldset>
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             ¿Qué NO Incluye el Paquete?
@@ -401,13 +452,7 @@ function CreatePackagePage() {
                 <input
                   type="checkbox"
                   checked={whatIsNotIncluded.includes(item.id)}
-                  onChange={() => {
-                    setWhatIsNotIncluded((prev) =>
-                      prev.includes(item.id)
-                        ? prev.filter((id) => id !== item.id)
-                        : [...prev, item.id]
-                    );
-                  }}
+                  onChange={() => handleNotIncludeChange(item.id)}
                   className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                 />
                 <span className="text-sm text-gray-700">{item.name}</span>
@@ -417,17 +462,25 @@ function CreatePackagePage() {
         </fieldset>
 
         {error && (
-          <p className="text-red-500 text-center bg-red-100 p-3 rounded-md">
-            {error}
-          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800 font-medium">{error}</p>
+          </div>
         )}
 
-        <div className="text-right pt-4">
+        <div className="flex justify-between pt-6 border-t">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
           <button
             type="submit"
-            className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600"
+            disabled={loading}
+            className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Publicar Paquete
+            {loading ? "Creando..." : "Publicar Paquete"}
           </button>
         </div>
       </form>
