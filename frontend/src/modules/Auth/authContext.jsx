@@ -5,7 +5,9 @@ import { jwtDecode } from "jwt-decode";
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
-export const axiosInstance = axios.create({ baseURL: 'http://localhost:8000/api' });
+export const axiosInstance = axios.create({ 
+  baseURL: 'http://localhost:8000/api',
+});
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -18,33 +20,148 @@ export function AuthProvider({ children }) {
         setAuthTokens(null);
         setUser(null);
         localStorage.removeItem('authTokens');
-        delete axiosInstance.defaults.headers.common['Authorization'];
     }, []);
 
     const loginUser = useCallback((tokens, userData) => {
         setAuthTokens(tokens);
-        setUser(userData || jwtDecode(tokens.access));
+        setUser(userData);
         localStorage.setItem('authTokens', JSON.stringify(tokens));
-        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${tokens.access}`;
     }, []);
 
+    // 🎯 NUEVA FUNCIÓN: Obtener datos completos del usuario desde el backend
+    const fetchUserProfile = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/users/me/');
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            throw error;
+        }
+    }, []);
+
+    const checkAuth = useCallback(async () => {
+        const tokens = localStorage.getItem('authTokens');
+        
+        if (!tokens) {
+            setLoadingAuth(false);
+            return;
+        }
+
+        try {
+            const parsedTokens = JSON.parse(tokens);
+            const decodedToken = jwtDecode(parsedTokens.access);
+            const currentTime = Date.now() / 1000;
+            
+            if (decodedToken.exp < currentTime) {
+                try {
+                    const response = await axiosInstance.post('/token/refresh/', {
+                        refresh: parsedTokens.refresh
+                    });
+                    const newTokens = {
+                        access: response.data.access,
+                        refresh: parsedTokens.refresh
+                    };
+                    localStorage.setItem('authTokens', JSON.stringify(newTokens));
+                    setAuthTokens(newTokens);
+                    
+                    // 🎯 Obtener datos completos del usuario después de refresh
+                    const userProfile = await fetchUserProfile();
+                    setUser(userProfile);
+                    
+                } catch (refreshError) {
+                    console.error("Token refresh failed:", refreshError);
+                    logoutUser();
+                }
+            } else {
+                setAuthTokens(parsedTokens);
+                
+                // 🎯 Obtener datos completos del usuario al cargar la app
+                try {
+                    const userProfile = await fetchUserProfile();
+                    setUser(userProfile);
+                } catch (profileError) {
+                    console.error("Error fetching user profile:", profileError);
+                    // Si falla obtener el perfil, al menos usar los datos básicos del token
+                    setUser({
+                        id: decodedToken.user_id,
+                        email: decodedToken.email,
+                        // Agregar campos básicos que podrían estar en el token
+                        username: decodedToken.username || '',
+                        first_name: decodedToken.first_name || '',
+                        last_name: decodedToken.last_name || '',
+                        role: decodedToken.role || 'TRAVELER'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error checking auth:", error);
+            logoutUser();
+        } finally {
+            setLoadingAuth(false);
+        }
+    }, [fetchUserProfile, logoutUser]);
+
+    // Interceptor para añadir token a las requests
     useEffect(() => {
-        const interceptor = axiosInstance.interceptors.response.use(
+        const requestInterceptor = axiosInstance.interceptors.request.use(
+            (config) => {
+                const tokens = localStorage.getItem('authTokens');
+                if (tokens) {
+                    const parsedTokens = JSON.parse(tokens);
+                    config.headers.Authorization = `Bearer ${parsedTokens.access}`;
+                }
+                return config;
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        );
+
+        return () => {
+            axiosInstance.interceptors.request.eject(requestInterceptor);
+        };
+    }, []);
+
+    // Interceptor de respuesta para manejar token expirado
+    useEffect(() => {
+        const responseInterceptor = axiosInstance.interceptors.response.use(
             (response) => response,
             async (error) => {
                 const originalRequest = error.config;
+                
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     originalRequest._retry = true;
-                    const refreshToken = JSON.parse(localStorage.getItem('authTokens'))?.refresh;
+                    
+                    const tokens = localStorage.getItem('authTokens');
+                    if (!tokens) {
+                        logoutUser();
+                        return Promise.reject(error);
+                    }
+
+                    const parsedTokens = JSON.parse(tokens);
+                    const refreshToken = parsedTokens.refresh;
+
                     if (refreshToken) {
                         try {
                             const response = await axiosInstance.post('/token/refresh/', {
                                 refresh: refreshToken
                             });
-                            const newTokens = { access: response.data.access, refresh: refreshToken };
-                            loginUser(newTokens);
-                            originalRequest.headers['Authorization'] = `Bearer ${newTokens.access}`;
+                            
+                            const newTokens = { 
+                                access: response.data.access, 
+                                refresh: refreshToken 
+                            };
+                            
+                            localStorage.setItem('authTokens', JSON.stringify(newTokens));
+                            setAuthTokens(newTokens);
+                            
+                            // 🎯 Obtener perfil actualizado después del refresh
+                            const userProfile = await fetchUserProfile();
+                            setUser(userProfile);
+                            
+                            originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
                             return axiosInstance(originalRequest);
+                            
                         } catch (refreshError) {
                             console.error("Refresh token fallido, cerrando sesión", refreshError);
                             logoutUser();
@@ -57,18 +174,35 @@ export function AuthProvider({ children }) {
                 return Promise.reject(error);
             }
         );
-        return () => axiosInstance.interceptors.response.eject(interceptor);
-    }, [authTokens, loginUser, logoutUser]);
 
+        return () => {
+            axiosInstance.interceptors.response.eject(responseInterceptor);
+        };
+    }, [logoutUser, fetchUserProfile]);
+
+    // Verificar autenticación al cargar
     useEffect(() => {
-        if (authTokens) {
-            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${authTokens.access}`;
-            setUser(jwtDecode(authTokens.access));
-        }
-        setLoadingAuth(false);
-    }, []);
-    
-    const contextData = { user, authTokens, loginUser, logoutUser, loadingAuth };
+        checkAuth();
+    }, [checkAuth]);
+
+    // Debug
+    useEffect(() => {
+        console.log("🔐 Estado de autenticación:", {
+            tieneTokens: !!authTokens,
+            usuario: user,
+            loading: loadingAuth
+        });
+    }, [authTokens, user, loadingAuth]);
+
+    const contextData = { 
+        user, 
+        authTokens, 
+        loginUser, 
+        logoutUser, 
+        loadingAuth,
+        checkAuth,
+        fetchUserProfile
+    };
     
     return <AuthContext.Provider value={contextData}>{children}</AuthContext.Provider>;
 }

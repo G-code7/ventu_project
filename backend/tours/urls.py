@@ -10,6 +10,5 @@ router.register(r'included-items', IncludedItemViewSet, basename='includeditem')
 
 urlpatterns = [
     path('', include(router.urls)),
-    # Para diagnóstico
     path('diagnostic/', TourDiagnosticView.as_view(), name='tour-diagnostic'),
 ]

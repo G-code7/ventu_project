@@ -9,6 +9,13 @@ from tours.models import TourPackage
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+class CurrentUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
+
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
     Endpoint para que un usuario vea o actualice su propio perfil.

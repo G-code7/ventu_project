@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import TourPackage, PackageImage, Tag, Review, IncludedItem 
+from .models import TourPackage, PackageImage, Tag, Review, IncludedItem
 
 class TagSerializer(serializers.ModelSerializer):
     """ Traduce las etiquetas a un formato simple. """

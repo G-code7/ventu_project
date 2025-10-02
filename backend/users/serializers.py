@@ -3,10 +3,6 @@ from dj_rest_auth.registration.serializers import RegisterSerializer
 from .models import CustomUser, OperatorProfile, TravelerProfile
 
 class UserRegistrationSerializer(RegisterSerializer):
-    """
-    Serializador de registro personalizado que maneja roles y perfiles,
-    y es 100% compatible con el flujo de dj-rest-auth.
-    """
     role = serializers.CharField(max_length=10)
     organization_name = serializers.CharField(required=False, allow_blank=True)
     rif_type = serializers.CharField(required=False, allow_blank=True)
@@ -26,17 +22,12 @@ class UserRegistrationSerializer(RegisterSerializer):
 
     def save(self, request):
         user = super().save(request)
-
-        # --- CORRECCIÓN CLAVE ---
-        # Forzamos la activación del usuario inmediatamente después de crearlo.
-        # Esto soluciona el error de "token inválido" en el login.
         user.is_active = True
         user.role = self.cleaned_data.get('role')
         user.first_name = self.cleaned_data.get('first_name')
         user.last_name = self.cleaned_data.get('last_name')
         user.save()
 
-        # Creamos el perfil correspondiente basado en el rol
         if user.role == 'OPERATOR':
             OperatorProfile.objects.create(
                 user=user,
@@ -49,7 +40,6 @@ class UserRegistrationSerializer(RegisterSerializer):
         
         return user
 
-# --- Serializers para visualizar perfiles (sin cambios) ---
 class OperatorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = OperatorProfile
@@ -58,7 +48,7 @@ class OperatorProfileSerializer(serializers.ModelSerializer):
 class TravelerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TravelerProfile
-        fields = ['id_card', 'phone_number', 'can_be_contacted_by_whatsapp']
+        fields = ['cedula', 'phone_number', 'can_contact_by_whatsapp']
 
 class UserProfileSerializer(serializers.ModelSerializer):
     operatorprofile = OperatorProfileSerializer(read_only=True)
@@ -67,4 +57,3 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'operatorprofile', 'travelerprofile']
-

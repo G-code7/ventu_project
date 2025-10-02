@@ -3,11 +3,13 @@ from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
+from rest_framework.permissions import IsAuthenticated
 
 from .models import TourPackage, Tag, Review, PackageImage, IncludedItem
 from .serializers import TourPackageSerializer, TagSerializer, ReviewSerializer, IncludedItemSerializer 
 from .permissions import IsOwnerOrReadOnly
 from .filters import TourPackageFilter
+from users.serializers import UserProfileSerializer 
 
 class TourPackageViewSet(viewsets.ModelViewSet):
     """
@@ -146,3 +148,11 @@ class TourDiagnosticView(APIView):
                 'operator': tour.operator.email if tour.operator else None
             })
         return Response(data)
+
+# Vista para obtener el perfil del usuario actual
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
