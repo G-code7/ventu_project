@@ -31,13 +31,13 @@ VENEZUELA_STATES = [
 ]
 
 class Environment(models.TextChoices):
-    FESTIVE_MUSIC = "FESTIVE_MUSIC", "Festivo con Música"
-    RELAXING_NO_MUSIC = "RELAXING_NO_MUSIC", "Relajante sin Música"
-    ADVENTUROUS = "ADVENTUROUS", "Aventurero/Extremo"
-    CULTURAL = "CULTURAL", "Cultural/Educativo"
-    ROMANTIC = "ROMANTIC", "Romántico"
-    FAMILY = "FAMILY", "Familiar"
-    LUXURY = "LUXURY", "Lujo/Exclusivo"
+    FESTIVE_MUSIC = "Festivo con Música"
+    RELAXING_NO_MUSIC = "Relajante sin Música"
+    ADVENTUROUS = "Aventurero/Extremo"
+    CULTURAL = "Cultural/Educativo"
+    ROMANTIC = "Romántico"
+    FAMILY = "Familiar"
+    LUXURY = "Lujo/Exclusivo"
 
 class Tag(models.Model):
     """
@@ -114,12 +114,27 @@ class TourPackage(models.Model):
         verbose_name="Tasa de Comisión"
     )
     
-    # Propiedad en prueba!!!
-    @property
-    def final_price(self):
-        """Calcular precio final con comisión"""
-        if self.base_price is None:
-            return Decimal('0.00')
+    # final_price
+    final_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Precio Final (con comisión)",
+        null=True,
+        blank=True,
+        editable=False
+    )
+
+    def save(self, *args, **kwargs):
+        """Sobrescribir save para calcular automáticamente el precio final"""
+        if self.base_price is not None and self.commission_rate is not None:
+            base_price_decimal = Decimal(str(self.base_price))
+            commission_rate_decimal = Decimal(str(self.commission_rate))
+            self.final_price = base_price_decimal * (1 + commission_rate_decimal)
+            self.final_price = self.final_price.quantize(Decimal('0.01'))
+        else:
+            self.final_price = self.base_price
+        
+        super().save(*args, **kwargs)
 
     # Estado del paquete
     class Status(models.TextChoices):

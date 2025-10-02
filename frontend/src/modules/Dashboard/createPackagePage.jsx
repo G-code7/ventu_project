@@ -632,7 +632,7 @@ function CreatePackagePage() {
                     onChange={(e) =>
                       updateVariablePrice(index, "type", e.target.value)
                     }
-                    placeholder="Ej: Niños, Tercera Edad, Seguro, Comidas..."
+                    placeholder="Ej: Actividades, Seguro de viajes, Comidas..."
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                   />
                 </div>

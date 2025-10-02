@@ -12,6 +12,185 @@ import {
 import StarRating from "./starRating";
 import { axiosInstance } from "../Auth/authContext";
 
+// Componente Modal de Galería (podría moverse a un archivo separado después)
+const ImageGalleryModal = ({ images, isOpen, onClose, initialIndex = 0 }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
+  // Reset al índice inicial cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentIndex(initialIndex);
+    }
+  }, [isOpen, initialIndex]);
+
+  // Manejar navegación con teclado
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isOpen) return;
+
+      switch (e.key) {
+        case "Escape":
+          onClose();
+          break;
+        case "ArrowLeft":
+          goToPrevious();
+          break;
+        case "ArrowRight":
+          goToNext();
+          break;
+        default:
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, currentIndex, images?.length]);
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const goToImage = (index) => {
+    setCurrentIndex(index);
+  };
+
+  if (!isOpen || !images || images.length === 0) return null;
+
+  const currentImage = images[currentIndex];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Overlay con backdrop blur */}
+      <div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300"
+        onClick={onClose}
+      />
+
+      {/* Contenido del modal */}
+      <div className="relative z-10 w-full max-w-7xl mx-4 max-h-[90vh] bg-white rounded-2xl shadow-2xl transform transition-all duration-300 scale-95 opacity-0 animate-modal-in">
+        {/* Header del modal */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800">
+            Galería de imágenes ({currentIndex + 1} de {images.length})
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+          >
+            <svg
+              className="w-6 h-6 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Imagen principal */}
+        <div className="relative flex-1 flex items-center justify-center p-4">
+          <button
+            onClick={goToPrevious}
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 z-10"
+          >
+            <svg
+              className="w-6 h-6 text-gray-800"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+
+          <div className="flex items-center justify-center max-h-[70vh]">
+            <img
+              src={currentImage.image}
+              alt={`Imagen ${currentIndex + 1}`}
+              className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+            />
+          </div>
+
+          <button
+            onClick={goToNext}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 z-10"
+          >
+            <svg
+              className="w-6 h-6 text-gray-800"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Miniaturas */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {images.map((image, index) => (
+              <button
+                key={image.id || `thumb-${index}`}
+                onClick={() => goToImage(index)}
+                className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                  index === currentIndex
+                    ? "border-orange-500 scale-105"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <img
+                  src={image.image}
+                  alt={`Miniatura ${index + 1}`}
+                  className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Estilos para la animación */}
+      <style jsx>{`
+        @keyframes modalIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-modal-in {
+          animation: modalIn 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
 function TourDetailPage() {
   const { tourId } = useParams();
   const navigate = useNavigate();
@@ -35,12 +214,15 @@ function TourDetailPage() {
   const [variableExtras, setVariableExtras] = useState({});
   const [reserving, setReserving] = useState(false);
 
+  // Estados para el modal de galería
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
   // Función para verificar si el tour es válido
   const isValidTour = (tourData) => {
-    return tourData && 
-           typeof tourData === 'object' && 
-           tourData.id && 
-           tourData.title;
+    return (
+      tourData && typeof tourData === "object" && tourData.id && tourData.title
+    );
   };
 
   // Cargar datos del tour
@@ -56,7 +238,7 @@ function TourDetailPage() {
           // Inicializar variableExtras
           if (response.data.variable_prices) {
             const initialExtras = {};
-            Object.keys(response.data.variable_prices).forEach(key => {
+            Object.keys(response.data.variable_prices).forEach((key) => {
               initialExtras[key] = false;
             });
             setVariableExtras(initialExtras);
@@ -154,7 +336,36 @@ function TourDetailPage() {
 
   const getDisplayPrice = () => {
     if (!tour) return 0;
+
+    // Si hay final_price calculado, usarlo
     return getPriceAsNumber(tour.final_price || tour.base_price);
+
+    // Si no, calcularlo basado en base_price y commission_rate
+    const basePrice = getPriceAsNumber(tour.base_price);
+    const commissionRate = parseFloat(tour.commission_rate) || 0;
+    const finalPrice = basePrice * (1 + commissionRate);
+
+    return finalPrice;
+  };
+
+  const getBasePrice = () => {
+    if (!tour) return 0;
+    return getPriceAsNumber(tour.base_price);
+  };
+
+  // Función para mostrar el desglose de precios
+  const getPriceBreakdown = () => {
+    const basePrice = getBasePrice();
+    const displayPrice = getDisplayPrice();
+    const commissionRate = parseFloat(tour.commission_rate) || 0;
+    const commissionAmount = displayPrice - basePrice;
+
+    return {
+      basePrice,
+      displayPrice,
+      commissionRate: commissionRate * 100, // Convertir a porcentaje
+      commissionAmount,
+    };
   };
 
   const calculateTotal = () => {
@@ -169,7 +380,7 @@ function TourDetailPage() {
     // Extras fijos
     const extrasPrice = 40;
     const totalPeople = tickets.adults + tickets.seniors + tickets.children;
-    
+
     if (extras.meals) total += extrasPrice * totalPeople;
     if (extras.travel_insurance) total += extrasPrice * totalPeople;
 
@@ -214,6 +425,25 @@ function TourDetailPage() {
     return `${tour.state_origin} → ${tour.state_destination}`;
   };
 
+  // Función para abrir el modal de galería
+  const openGalleryModal = (index = 0) => {
+    setCurrentImageIndex(index);
+    setIsGalleryModalOpen(true);
+  };
+
+  // Función para cerrar el modal de galería
+  const closeGalleryModal = () => {
+    setIsGalleryModalOpen(false);
+  };
+
+  // Función helper para obtener todas las imágenes (main + gallery)
+  const getAllImages = () => {
+    const images = [];
+    if (mainImage) images.push(mainImage);
+    images.push(...galleryImages);
+    return images;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -245,6 +475,7 @@ function TourDetailPage() {
 
   // Obtener imágenes
   const { mainImage, galleryImages } = getTourImages();
+  const allImages = getAllImages();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,7 +535,7 @@ function TourDetailPage() {
                 <span>{getLocationDisplay()}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <button className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors duration-200 p-2 rounded-lg hover:bg-orange-50">
                 <ShareIcon className="w-5 h-5" />
@@ -322,30 +553,50 @@ function TourDetailPage() {
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {mainImage && (
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 relative group">
                 <img
                   src={mainImage.image}
                   alt={tour.title}
-                  className="w-full h-80 lg:h-96 object-cover rounded-xl shadow-md"
+                  className="w-full h-80 lg:h-96 object-cover rounded-xl shadow-md cursor-pointer group-hover:shadow-lg transition-all duration-300"
+                  onClick={() => openGalleryModal(0)}
+                />
+                {/* Overlay sutil al hover */}
+                <div
+                  className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition-all duration-300 cursor-pointer"
+                  onClick={() => openGalleryModal(0)}
                 />
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
               {safeMap(galleryImages.slice(0, 4), (image, index) => (
-                <img
+                <div
                   key={image?.id || `gallery-${index}`}
-                  src={image.image}
-                  alt={`${tour.title} ${index + 1}`}
-                  className="w-full h-36 lg:h-40 object-cover rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                />
+                  className="relative group"
+                >
+                  <img
+                    src={image.image}
+                    alt={`${tour.title} ${index + 1}`}
+                    className="w-full h-36 lg:h-40 object-cover rounded-xl shadow-md cursor-pointer group-hover:shadow-lg transition-all duration-300"
+                    onClick={() => openGalleryModal(index + 1)} // +1 porque la primera es mainImage
+                  />
+                  {/* Overlay sutil al hover */}
+                  <div
+                    className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition-all duration-300 cursor-pointer"
+                    onClick={() => openGalleryModal(index + 1)}
+                  />
+                </div>
               ))}
             </div>
           </div>
-          {galleryImages.length > 4 && (
-            <button className="mt-6 text-orange-500 font-semibold hover:text-orange-600 transition-colors duration-200 flex items-center gap-2 mx-auto">
-              <span>Ver todas las {galleryImages.length + 1} fotos</span>
+
+          {/* Botón discreto para ver todas las fotos */}
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => openGalleryModal(0)}
+              className="inline-flex items-center gap-2 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full font-medium transition-all duration-200 hover:shadow-md hover:scale-105"
+            >
               <svg
-                className="w-4 h-4"
+                className="w-5 h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -354,11 +605,12 @@ function TourDetailPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 5l7 7-7 7"
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
                 />
               </svg>
+              <span>Ver fotos ({allImages.length})</span>
             </button>
-          )}
+          </div>
         </div>
 
         {/* Grid principal para contenido y sidebar */}
@@ -390,7 +642,9 @@ function TourDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600">Entorno</p>
                     <p className="font-semibold text-gray-800">
-                      {tour.environment === "ADVENTUROUS" ? "Aventurero" : tour.environment || "Festivo, Con música"}
+                      {tour.environment === "ADVENTUROUS"
+                        ? "Aventurero"
+                        : tour.environment || "Festivo, Con música"}
                     </p>
                   </div>
                 </div>
@@ -507,11 +761,6 @@ function TourDetailPage() {
                   ${getFormattedPrice(getDisplayPrice())}
                 </p>
                 <p className="text-gray-600 text-lg">por persona</p>
-                {tour.final_price && tour.base_price && (
-                  <p className="text-sm text-gray-500 line-through mt-1">
-                    ${getFormattedPrice(tour.base_price)}
-                  </p>
-                )}
               </div>
 
               {/* Selector de fecha */}
@@ -535,7 +784,9 @@ function TourDetailPage() {
                     🕐 Hora de encuentro:
                   </span>
                   <span className="font-semibold text-gray-800">
-                    {tour.meeting_time ? tour.meeting_time.substring(0, 5) : "12:00"}
+                    {tour.meeting_time
+                      ? tour.meeting_time.substring(0, 5)
+                      : "12:00"}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -660,71 +911,39 @@ function TourDetailPage() {
               </div>
 
               {/* Extras adicionales - Variables prices */}
-              {tour.variable_prices && Object.keys(tour.variable_prices).length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-semibold text-gray-800 mb-4 text-lg">
-                    ✨ Opciones adicionales
-                  </h4>
-                  <div className="space-y-4">
-                    {Object.entries(tour.variable_prices).map(([key, price]) => (
-                      <label key={key} className="flex items-center justify-between cursor-pointer p-3 rounded-lg border-2 border-gray-200 hover:border-orange-300 transition-colors">
-                        <div>
-                          <span className="font-medium text-gray-800">
-                            {key.trim()}
-                          </span>
-                          <p className="text-sm text-gray-600">
-                            +${getFormattedPrice(price)} por persona
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={variableExtras[key] || false}
-                          onChange={() => handleVariableExtraChange(key)}
-                          className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500"
-                        />
-                      </label>
-                    ))}
+              {tour.variable_prices &&
+                Object.keys(tour.variable_prices).length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="font-semibold text-gray-800 mb-4 text-lg">
+                      ✨ Opciones adicionales
+                    </h4>
+                    <div className="space-y-4">
+                      {Object.entries(tour.variable_prices).map(
+                        ([key, price]) => (
+                          <label
+                            key={key}
+                            className="flex items-center justify-between cursor-pointer p-3 rounded-lg border-2 border-gray-200 hover:border-orange-300 transition-colors"
+                          >
+                            <div>
+                              <span className="font-medium text-gray-800">
+                                {key.trim()}
+                              </span>
+                              <p className="text-sm text-gray-600">
+                                +${getFormattedPrice(price)} por persona
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={variableExtras[key] || false}
+                              onChange={() => handleVariableExtraChange(key)}
+                              className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500"
+                            />
+                          </label>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Extras fijos */}
-              {/*
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 mb-4 text-lg">
-                  🛡️ Seguros y servicios
-                </h4>
-                <div className="space-y-4">
-                  <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border-2 border-gray-200 hover:border-orange-300 transition-colors">
-                    <div>
-                      <span className="font-medium text-gray-800">
-                        🍽️ Comidas adicionales
-                      </span>
-                      <p className="text-sm text-gray-600">+$40 por persona</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={extras.meals}
-                      onChange={() => handleExtraChange("meals")}
-                      className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border-2 border-gray-200 hover:border-orange-300 transition-colors">
-                    <div>
-                      <span className="font-medium text-gray-800">
-                        🛡️ Seguro de viaje
-                      </span>
-                      <p className="text-sm text-gray-600">+$40 por persona</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={extras.travel_insurance}
-                      onChange={() => handleExtraChange("travel_insurance")}
-                      className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500"
-                    />
-                  </label>
-                </div>
-              </div> */}
+                )}
 
               {/* Total */}
               <div className="border-t-2 border-gray-200 pt-6 mb-6">
@@ -737,7 +956,7 @@ function TourDetailPage() {
               </div>
 
               {/* Botón de reserva */}
-              <button 
+              <button
                 onClick={handleReservation}
                 disabled={reserving}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
@@ -753,6 +972,14 @@ function TourDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Galería */}
+      <ImageGalleryModal
+        images={allImages}
+        isOpen={isGalleryModalOpen}
+        onClose={closeGalleryModal}
+        initialIndex={currentImageIndex}
+      />
     </div>
   );
 }
