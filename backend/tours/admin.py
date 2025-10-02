@@ -31,14 +31,14 @@ class TourPackageAdmin(admin.ModelAdmin):
     Personalización de la vista de administración para el modelo TourPackage.
     """
     # Campos que se mostrarán en la lista principal de paquetes
-    list_display = ('title', 'operator', 'location', 'base_price', 'is_active')
+    list_display = ('title', 'operator', 'state_origin', 'state_destination', 'base_price', 'is_active')
     
     # Filtros que aparecerán en la barra lateral derecha
-    list_filter = ('is_active', 'location', 'operator')
+    list_filter = ('is_active', 'state_origin', 'state_destination', 'operator', 'environment')
     
     # Habilita un campo de búsqueda
-    search_fields = ('title', 'description', 'location')
-    
+    search_fields = ('title', 'description', 'state_origin', 'state_destination')
+
     # Añade la gestión de imágenes directamente en la página del paquete
     inlines = [PackageImageInline]
 

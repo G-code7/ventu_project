@@ -3,21 +3,65 @@ import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../Auth/authContext";
 import { XIcon } from "../Shared/icons";
 
+// Lista de estados de Venezuela
+const VENEZUELA_STATES = [
+  "Amazonas",
+  "Anzoátegui",
+  "Apure",
+  "Aragua",
+  "Barinas",
+  "Bolívar",
+  "Carabobo",
+  "Cojedes",
+  "Delta Amacuro",
+  "Distrito Capital",
+  "Falcón",
+  "Guárico",
+  "Lara",
+  "Mérida",
+  "Miranda",
+  "Monagas",
+  "Nueva Esparta",
+  "Portuguesa",
+  "Sucre",
+  "Táchira",
+  "Trujillo",
+  "La Guaira",
+  "Yaracuy",
+  "Zulia",
+];
+
+// Opciones de entorno/ambiente
+const ENVIRONMENT_OPTIONS = [
+  { value: "FESTIVE_MUSIC", label: "🎉 Festivo con Música" },
+  { value: "RELAXING_NO_MUSIC", label: "😌 Relajante sin Música" },
+  { value: "ADVENTUROUS", label: "🧗 Aventurero/Extremo" },
+  { value: "CULTURAL", label: "🏛️ Cultural/Educativo" },
+  { value: "ROMANTIC", label: "💝 Romántico" },
+  { value: "FAMILY", label: "👨‍👩‍👧‍👦 Familiar" },
+  { value: "LUXURY", label: "🌟 Lujo/Exclusivo" },
+];
+
 function CreatePackagePage() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Estados del formulario - SIN commission_rate
+  // Estados del formulario
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    location: "",
-    destination: "",
+    state_origin: "Distrito Capital",
+    specific_origin: "",
+    state_destination: "Miranda",
+    specific_destination: "",
     base_price: "",
     duration_days: 1,
     meeting_point: "Por definir",
     meeting_time: "12:00",
+    // campos nuevos
+    environment: "RELAXING_NO_MUSIC",
+    group_size: 10,
   });
 
   // Estados para relaciones
@@ -26,6 +70,7 @@ function CreatePackagePage() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedIncludes, setSelectedIncludes] = useState([]);
   const [whatIsNotIncluded, setWhatIsNotIncluded] = useState([]);
+  const [highlights, setHighlights] = useState([""]);
 
   // Estados para arrays dinámicos
   const [itinerary, setItinerary] = useState([{ day: 1, description: "" }]);
@@ -113,6 +158,22 @@ function CreatePackagePage() {
     }
   };
 
+  // Highlights - funciones
+  const addHighlight = () => {
+    setHighlights((prev) => [...prev, ""]);
+  };
+
+  const updateHighlight = (index, value) => {
+    setHighlights((prev) =>
+      prev.map((item, i) => (i === index ? value : item))
+    );
+  };
+
+  const removeHighlight = (index) => {
+    if (highlights.length > 1) {
+      setHighlights((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
   // Precios variables
   const addVariablePrice = () => {
     setVariablePrices((prev) => [...prev, { type: "", price: "" }]);
@@ -164,6 +225,14 @@ function CreatePackagePage() {
       });
       if (Object.keys(pricesObj).length > 0) {
         submitData.append("variable_prices", JSON.stringify(pricesObj));
+      }
+
+      // Highlights como JSON válido
+      const highlightsArray = highlights.filter(
+        (highlight) => highlight.trim() !== ""
+      );
+      if (highlightsArray.length > 0) {
+        submitData.append("highlights", JSON.stringify(highlightsArray));
       }
 
       // 4. Relaciones
@@ -232,68 +301,207 @@ function CreatePackagePage() {
         onSubmit={handleSubmit}
         className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8"
       >
-        {/* Información Básica */}
+        {/* Información Básica  */}
         <fieldset className="space-y-4">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Información Básica
           </legend>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              {
-                id: "title",
-                label: "Título del Paquete",
-                type: "text",
-                required: true,
-              },
-              {
-                id: "location",
-                label: "Ubicación (Región/Estado)",
-                type: "text",
-                required: true,
-              },
-              {
-                id: "destination",
-                label: "Destino Específico",
-                type: "text",
-                required: true,
-              },
-              {
-                id: "base_price",
-                label: "Precio Base (USD)",
-                type: "number",
-                step: "0.01",
-                required: true,
-              },
-              {
-                id: "duration_days",
-                label: "Duración (días)",
-                type: "number",
-                min: "1",
-                required: true,
-              },
-            ].map((field) => (
-              <div key={field.id}>
-                <label
-                  htmlFor={field.id}
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {field.label}
-                </label>
-                <input
-                  type={field.type}
-                  id={field.id}
-                  value={formData[field.id]}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  required={field.required}
-                  min={field.min}
-                  max={field.max}
-                  step={field.step}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                />
-              </div>
-            ))}
+            {/* Título */}
+            <div>
+              <label
+                htmlFor="title"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Título del Paquete
+              </label>
+              <input
+                type="text"
+                id="title"
+                value={formData.title}
+                onChange={(e) => handleInputChange("title", e.target.value)}
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Precio Base */}
+            <div>
+              <label
+                htmlFor="base_price"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Precio Base (USD)
+              </label>
+              <input
+                type="number"
+                id="base_price"
+                step="0.01"
+                value={formData.base_price}
+                onChange={(e) =>
+                  handleInputChange("base_price", e.target.value)
+                }
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Estado de Origen */}
+            <div>
+              <label
+                htmlFor="state_origin"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Estado de Origen
+              </label>
+              <select
+                id="state_origin"
+                value={formData.state_origin}
+                onChange={(e) =>
+                  handleInputChange("state_origin", e.target.value)
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              >
+                {VENEZUELA_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Lugar Específico de Origen */}
+            <div>
+              <label
+                htmlFor="specific_origin"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Lugar Específico de Origen
+              </label>
+              <input
+                type="text"
+                id="specific_origin"
+                value={formData.specific_origin}
+                onChange={(e) =>
+                  handleInputChange("specific_origin", e.target.value)
+                }
+                placeholder="Ej: Aeropuerto de Maiquetía, Terminal de La Bandera"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Estado de Destino */}
+            <div>
+              <label
+                htmlFor="state_destination"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Estado de Destino
+              </label>
+              <select
+                id="state_destination"
+                value={formData.state_destination}
+                onChange={(e) =>
+                  handleInputChange("state_destination", e.target.value)
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              >
+                {VENEZUELA_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Destino Específico */}
+            <div>
+              <label
+                htmlFor="specific_destination"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Destino Específico
+              </label>
+              <input
+                type="text"
+                id="specific_destination"
+                value={formData.specific_destination}
+                onChange={(e) =>
+                  handleInputChange("specific_destination", e.target.value)
+                }
+                placeholder="Ej: Playa Colorada, Parque Nacional Morrocoy"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Duración */}
+            <div>
+              <label
+                htmlFor="duration_days"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Duración (días)
+              </label>
+              <input
+                type="number"
+                id="duration_days"
+                min="1"
+                value={formData.duration_days}
+                onChange={(e) =>
+                  handleInputChange("duration_days", e.target.value)
+                }
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Tamaño del Grupo */}
+            <div>
+              <label
+                htmlFor="group_size"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Tamaño Máximo del Grupo
+              </label>
+              <input
+                type="number"
+                id="group_size"
+                min="1"
+                value={formData.group_size}
+                onChange={(e) =>
+                  handleInputChange("group_size", e.target.value)
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Entorno/Ambiente */}
+            <div>
+              <label
+                htmlFor="environment"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Entorno/Ambiente
+              </label>
+              <select
+                id="environment"
+                value={formData.environment}
+                onChange={(e) =>
+                  handleInputChange("environment", e.target.value)
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              >
+                {ENVIRONMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
+          {/* Descripción Larga */}
           <div>
             <label
               htmlFor="description"
@@ -312,7 +520,158 @@ function CreatePackagePage() {
           </div>
         </fieldset>
 
-        {/* Itinerario - VERSIÓN MEJORADA */}
+        {/* Punto y Hora de Encuentro */}
+        <fieldset className="space-y-4">
+          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
+            Punto y Hora de Encuentro
+          </legend>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label
+                htmlFor="meeting_point"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Punto de Encuentro
+              </label>
+              <input
+                type="text"
+                id="meeting_point"
+                value={formData.meeting_point}
+                onChange={(e) =>
+                  handleInputChange("meeting_point", e.target.value)
+                }
+                placeholder="Ej: Aeropuerto Internacional de Maiquetía"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="meeting_time"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Hora de Encuentro
+              </label>
+              <input
+                type="time"
+                id="meeting_time"
+                value={formData.meeting_time}
+                onChange={(e) =>
+                  handleInputChange("meeting_time", e.target.value)
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+        </fieldset>
+        {/* Puntos Destacados */}
+        <fieldset className="space-y-4">
+          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
+            Puntos Destacados
+          </legend>
+          <p className="text-sm text-gray-600 mb-4">
+            Lista los aspectos más atractivos de tu tour que quieres resaltar.
+          </p>
+          
+          {highlights.map((highlight, index) => (
+            <div key={index} className="flex gap-4 items-start border rounded-lg p-4 bg-green-50">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Punto destacado {index + 1}
+                </label>
+                <input
+                  type="text"
+                  value={highlight}
+                  onChange={(e) => updateHighlight(index, e.target.value)}
+                  placeholder="Ej: Playa privada, Buffet incluido, Guía bilingüe..."
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                />
+              </div>
+              {highlights.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeHighlight(index)}
+                  className="mt-6 text-red-500 hover:text-red-700 p-2"
+                >
+                  <XIcon className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addHighlight}
+            className="w-full py-2 border-2 border-dashed border-green-300 text-green-500 hover:bg-green-50 rounded-lg font-semibold"
+          >
+            + Añadir punto destacado
+          </button>
+        </fieldset>
+
+        {/* Precios Variables - PARA EXTRAS */}
+        <fieldset className="space-y-4">
+          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
+            Precios Variables y Extras
+          </legend>
+          <p className="text-sm text-gray-600 mb-4">
+            Define precios especiales para diferentes tipos de participantes o
+            servicios extras.
+          </p>
+
+          {variablePrices.map((price, index) => (
+            <div
+              key={index}
+              className="flex gap-4 items-start border rounded-lg p-4 bg-gray-50"
+            >
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Participante o Servicio
+                  </label>
+                  <input
+                    type="text"
+                    value={price.type}
+                    onChange={(e) =>
+                      updateVariablePrice(index, "type", e.target.value)
+                    }
+                    placeholder="Ej: Niños, Tercera Edad, Seguro, Comidas..."
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Precio Adicional (USD)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={price.price}
+                    onChange={(e) =>
+                      updateVariablePrice(index, "price", e.target.value)
+                    }
+                    placeholder="0.00"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+              {variablePrices.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeVariablePrice(index)}
+                  className="mt-6 text-red-500 hover:text-red-700 p-2"
+                >
+                  <XIcon className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addVariablePrice}
+            className="w-full py-2 border-2 border-dashed border-purple-300 text-purple-500 hover:bg-purple-50 rounded-lg font-semibold"
+          >
+            + Añadir precio variable o extra
+          </button>
+        </fieldset>
+        {/* Itinerario */}
         <fieldset className="space-y-4">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Itinerario Detallado

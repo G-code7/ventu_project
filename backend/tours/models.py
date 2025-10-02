@@ -3,12 +3,45 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-# --- Modelos de Soporte / "Etiquetas" ---
+VENEZUELA_STATES = [
+    ("Amazonas", "Amazonas"),
+    ("Anzoátegui", "Anzoátegui"), 
+    ("Apure", "Apure"),
+    ("Aragua", "Aragua"),
+    ("Barinas", "Barinas"),
+    ("Bolívar", "Bolívar"),
+    ("Carabobo", "Carabobo"),
+    ("Cojedes", "Cojedes"),
+    ("Delta Amacuro", "Delta Amacuro"),
+    ("Distrito Capital", "Distrito Capital"),
+    ("Falcón", "Falcón"),
+    ("Guárico", "Guárico"),
+    ("Lara", "Lara"),
+    ("Mérida", "Mérida"),
+    ("Miranda", "Miranda"),
+    ("Monagas", "Monagas"),
+    ("Nueva Esparta", "Nueva Esparta"),
+    ("Portuguesa", "Portuguesa"),
+    ("Sucre", "Sucre"),
+    ("Táchira", "Táchira"),
+    ("Trujillo", "Trujillo"),
+    ("La Guaira", "La Guaira"),
+    ("Yaracuy", "Yaracuy"),
+    ("Zulia", "Zulia"),
+]
+
+class Environment(models.TextChoices):
+    FESTIVE_MUSIC = "FESTIVE_MUSIC", "Festivo con Música"
+    RELAXING_NO_MUSIC = "RELAXING_NO_MUSIC", "Relajante sin Música"
+    ADVENTUROUS = "ADVENTUROUS", "Aventurero/Extremo"
+    CULTURAL = "CULTURAL", "Cultural/Educativo"
+    ROMANTIC = "ROMANTIC", "Romántico"
+    FAMILY = "FAMILY", "Familiar"
+    LUXURY = "LUXURY", "Lujo/Exclusivo"
 
 class Tag(models.Model):
     """
-    Modelo para etiquetas informativas (tags). Responde a tu pregunta sobre
-    duración, tamaño de grupo, entorno, transporte, actividades, etc.
+    Modelo para etiquetas informativas (tags). 
     Creando un modelo separado, podemos añadir tantas etiquetas como queramos
     sin hacer el modelo TourPackage gigantesco. Es mucho más flexible.
     """
@@ -38,6 +71,34 @@ class TourPackage(models.Model):
     """
     El modelo central que representa un paquete turístico.
     """
+    state_origin = models.CharField(
+        max_length=50,
+        choices=VENEZUELA_STATES,
+        verbose_name="Estado de Origen",
+        default="Distrito Capital"
+    )
+
+    specific_origin = models.CharField(
+        max_length=150,
+        verbose_name="Lugar Específico de Origen",
+        help_text="Ej: Aeropuerto de Maiquetía, Terminal de La Bandera",
+        default="Por definir"
+    )
+
+    state_destination = models.CharField(
+        max_length=50,
+        choices=VENEZUELA_STATES,
+        verbose_name="Estado de Destino", 
+        default="Miranda"
+    )
+
+    specific_destination = models.CharField(
+        max_length=150,
+        verbose_name="Destino Específico",
+        help_text="Ej: Playa Colorada, Parque Nacional Morrocoy",
+        default="Por definir"
+    )
+
     # Precio final calculado con comisión incluida
     base_price = models.DecimalField(
         max_digits=10, 
@@ -87,12 +148,31 @@ class TourPackage(models.Model):
     description = models.TextField(verbose_name="Descripción Larga")
     
     # Detalles Logísticos
-    location = models.CharField(max_length=150, verbose_name="Ubicación (Región/Estado)")
-    destination = models.CharField(max_length=150, verbose_name="Destino Específico")
+    # location = models.CharField(max_length=150, verbose_name="Ubicación (Región/Estado)")
+    # destination = models.CharField(max_length=150, verbose_name="Destino Específico")
     meeting_point = models.CharField(max_length=255, verbose_name="Lugar de Encuentro")
     meeting_time = models.TimeField(verbose_name="Hora de Encuentro")
     duration_days = models.PositiveIntegerField(default=1, verbose_name="Duración (días)")
     
+    environment = models.CharField(
+        max_length=50,
+        choices=Environment.choices,
+        default=Environment.RELAXING_NO_MUSIC,
+        verbose_name="Entorno/Ambiente"
+    )
+
+    group_size = models.PositiveIntegerField(
+        default=10,
+        verbose_name="Tamaño Máximo del Grupo",
+        help_text="Número máximo de participantes"
+    )
+
+    highlights = models.JSONField(
+        blank=True, null=True,
+        verbose_name="Puntos Destacados",
+        help_text="Lista de puntos destacados, ej: ['Playa privada', 'Buffet incluido', 'Guía bilingüe']"
+    )
+
     # Precio y Capacidad
     # price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio Base (Adulto)")
     # Usamos JSONField para precios variables (niños, etc.) para máxima flexibilidad.
