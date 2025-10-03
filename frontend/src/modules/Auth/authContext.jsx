@@ -185,15 +185,6 @@ export function AuthProvider({ children }) {
         checkAuth();
     }, [checkAuth]);
 
-    // Debug
-    useEffect(() => {
-        console.log("🔐 Estado de autenticación:", {
-            tieneTokens: !!authTokens,
-            usuario: user,
-            loading: loadingAuth
-        });
-    }, [authTokens, user, loadingAuth]);
-
     const contextData = { 
         user, 
         authTokens, 

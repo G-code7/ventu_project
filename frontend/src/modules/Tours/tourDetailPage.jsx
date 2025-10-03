@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { axiosInstance } from '../Auth/authContext';
+
 import {
   HeartIcon,
   ShareIcon,
@@ -10,7 +12,6 @@ import {
   XIcon,
 } from "../Shared/icons";
 import StarRating from "./starRating";
-import { axiosInstance } from "../Auth/authContext";
 
 // Componente Modal de Galería (podría moverse a un archivo separado después)
 const ImageGalleryModal = ({ images, isOpen, onClose, initialIndex = 0 }) => {
@@ -436,14 +437,6 @@ function TourDetailPage() {
     setIsGalleryModalOpen(false);
   };
 
-  // Función helper para obtener todas las imágenes (main + gallery)
-  const getAllImages = () => {
-    const images = [];
-    if (mainImage) images.push(mainImage);
-    images.push(...galleryImages);
-    return images;
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -475,6 +468,14 @@ function TourDetailPage() {
 
   // Obtener imágenes
   const { mainImage, galleryImages } = getTourImages();
+  // Función helper para obtener todas las imágenes (main + gallery)
+  const getAllImages = () => {
+    const images = [];
+    if (mainImage) images.push(mainImage);
+    images.push(...galleryImages);
+    return images;
+  };
+  
   const allImages = getAllImages();
 
   return (
@@ -670,6 +671,72 @@ function TourDetailPage() {
               <p className="text-gray-700 leading-relaxed text-lg">
                 {tour.description}
               </p>
+            </div>
+
+            {/* 🎯 NUEVA SECCIÓN: Puntos Destacados */}
+            {tour.highlights && tour.highlights.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  Puntos Destacados
+                </h2>
+                <ul className="space-y-3">
+                  {tour.highlights.map((highlight, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-orange-500 mr-3 mt-1">•</span>
+                      <span className="text-gray-700 text-lg">{highlight}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 🎯 NUEVA SECCIÓN: Punto de Encuentro */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                Punto de Encuentro
+              </h2>
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <div className="w-8 text-orange-500 mt-1">📍</div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Ubicación:</h3>
+                    <p className="text-gray-700">
+                      {tour.state_origin} - {tour.specific_origin}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="w-8 text-orange-500 mt-1">🏁</div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Destino:</h3>
+                    <p className="text-gray-700">
+                      {tour.state_destination} - {tour.specific_destination}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="w-8 text-orange-500 mt-1">⏰</div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Hora de encuentro:</h3>
+                    <p className="text-gray-700">
+                      {new Date(`2000-01-01T${tour.meeting_time}`).toLocaleTimeString('es-VE', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="w-8 text-orange-500 mt-1">📌</div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Lugar específico:</h3>
+                    <p className="text-gray-700">{tour.meeting_point}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Qué incluye y no incluye */}

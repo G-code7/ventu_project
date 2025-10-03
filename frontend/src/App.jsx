@@ -15,12 +15,6 @@ import AuthLoader from "./modules/Auth/authLoader";
 function AppContent() {
   const { user, authTokens } = useAuth();
 
-  console.log("🎯 App - Estado actual:", {
-    user,
-    tieneToken: !!authTokens,
-    token: authTokens ? "Presente" : "Ausente",
-  });
-
   return (
     <Routes>
       <Route element={<PageLayout />}>

@@ -273,13 +273,6 @@ function EditPackagePage() {
         submitData.append("gallery_images", image)
       );
 
-      console.log("Enviando datos:", {
-        title: formData.title,
-        tags: selectedTags,
-        includes: selectedIncludes,
-        notIncludes: whatIsNotIncluded,
-      });
-
       // Usar PATCH para actualización parcial
       await axiosInstance.patch(`/tours/${packageId}/`, submitData, {
         headers: { "Content-Type": "multipart/form-data" },
