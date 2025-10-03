@@ -20,6 +20,8 @@ venv/
 env/
 ENV/
 .venv/
+!.env.codespaces
+
 
 
 # Archivos de Entorno 
