@@ -101,11 +101,10 @@ class TourPackage(models.Model):
 
     # Precio final calculado con comisión incluida
     base_price = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        verbose_name="Precio Base",
-        null=False,
-        default=Decimal('0.00')
+    max_digits=10, 
+    decimal_places=2,
+    validators=[MinValueValidator(Decimal('1.00'))],
+    help_text="Precio mínimo: $1.00"
     )
     commission_rate = models.DecimalField(
         max_digits=5, 

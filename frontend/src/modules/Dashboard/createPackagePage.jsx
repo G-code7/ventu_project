@@ -191,6 +191,26 @@ function CreatePackagePage() {
     }
   };
 
+  // Manejo de imagenes
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError('Solo se permiten imágenes JPG, PNG o WebP');
+      return;
+    }
+    
+    if (file.size > MAX_FILE_SIZE) {
+      setError('La imagen no debe superar 5MB');
+      return;
+    }
+    
+    setMainImage(file);
+  };
+
   // Envío del formulario - OPTIMIZADO
   const handleSubmit = async (e) => {
     e.preventDefault();

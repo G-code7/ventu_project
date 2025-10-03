@@ -12,16 +12,21 @@ local_settings.py
 # Entornos Virtuales y Dependencias de Python
 # -----------------------------------------------------------------------------
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 venv/
 env/
+ENV/
 .venv/
 
 
-# Archivos de Entorno (¡MUY IMPORTANTE!)
+# Archivos de Entorno 
 # -----------------------------------------------------------------------------
 .env
 .env.*
-
+!.env.example
 
 # Docker
 # -----------------------------------------------------------------------------
@@ -31,8 +36,12 @@ docker-compose.override.yml
 # Django
 # -----------------------------------------------------------------------------
 # Base de datos local si se usara
+*.log
+local_settings.py
 db.sqlite3
 db.sqlite3-journal
+/backend/media/
+/backend/staticfiles/
 
 # Archivos subidos por los usuarios
 /backend/media/

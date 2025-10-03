@@ -13,3 +13,9 @@ python-dateutil==2.9.0
 # Autenticación y gestión de usuarios
 django-allauth==0.61.1
 dj-rest-auth==5.0.2
+
+# Seguridad y Rate Limiting
+django-ratelimit==4.1.0
+
+# Variables de entorno (opcional, Django lo hace nativo)
+python-decouple==3.8

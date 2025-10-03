@@ -22,10 +22,8 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('authTokens');
     }, []);
 
-    const loginUser = useCallback((tokens, userData) => {
-        setAuthTokens(tokens);
+    const loginUser = useCallback((userData) => {
         setUser(userData);
-        localStorage.setItem('authTokens', JSON.stringify(tokens));
     }, []);
 
     // 🎯 NUEVA FUNCIÓN: Obtener datos completos del usuario desde el backend

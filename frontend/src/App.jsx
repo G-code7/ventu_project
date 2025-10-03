@@ -7,10 +7,13 @@ import PageLayout from "./modules/Layout/pageLayout";
 import HomePage from "./modules/Home/homePage";
 import ProfilePage from "./modules/Profile/profilePage";
 import ProtectedRoute from "./modules/Auth/protectedRoute";
-import EditPackagePage from "./modules/Dashboard/editPackagePage";
 import CreatePackagePage from "./modules/Dashboard/createPackagePage";
+import EditPackagePage from "./modules/Dashboard/editPackagePage";
 import TourDetailPage from "./modules/Tours/tourDetailPage";
 import AuthLoader from "./modules/Auth/authLoader";
+import { lazy, Suspense } from 'react';
+
+
 
 function AppContent() {
   const { user, authTokens } = useAuth();

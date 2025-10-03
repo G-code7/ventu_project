@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+
 
 from .models import TourPackage, Tag, Review, PackageImage, IncludedItem
 from .serializers import TourPackageSerializer, TagSerializer, ReviewSerializer, IncludedItemSerializer 
@@ -20,30 +22,18 @@ class TourPackageViewSet(viewsets.ModelViewSet):
     filterset_class = TourPackageFilter
 
     def get_queryset(self):
-        """
-        Lógica de visibilidad CORREGIDA:
-        - Operadores: ven TODOS sus paquetes (incluyendo DRAFTs)
-        - Usuarios autenticados (no operadores): solo ven PUBLICADOS
-        - Usuarios anónimos: solo ven PUBLICADOS y ACTIVOS
-        """
-        user = self.request.user
-        
-        # Para usuarios autenticados
-        if user.is_authenticated:
-            if hasattr(user, 'role') and user.role == 'OPERATOR':
-                # Operadores ven todos sus paquetes
-                queryset = TourPackage.objects.filter(operator=user)
-                print(f"OPERATOR: Mostrando {queryset.count()} tours")
-                return queryset
-            else:
-                # Usuarios normales (TRAVELER) solo ven publicados
-                queryset = TourPackage.objects.filter(status='PUBLISHED', is_active=True)
-                print(f"USER (TRAVELER): Mostrando {queryset.count()} tours")
-                return queryset
-        
-        # Para usuarios anónimos - solo paquetes publicados y activos
-        queryset = TourPackage.objects.filter(status='PUBLISHED', is_active=True)
-        print(f"ANON: Mostrando {queryset.count()} tours")
+        queryset = TourPackage.objects.filter(
+            status='PUBLISHED', 
+            is_active=True
+        ).select_related(
+            'operator'
+        ).prefetch_related(
+            'tags', 
+            'images', 
+            'reviews',
+            'what_is_included',
+            'what_is_not_included'
+        )
         return queryset
 
     def perform_create(self, serializer):
@@ -125,7 +115,14 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
     def perform_create(self, serializer):
-        serializer.save(traveler=self.request.user)
+        if self.request.user.role != 'OPERATOR':
+            raise PermissionDenied("Solo operadores pueden crear paquetes")
+        
+        try:
+            serializer.save(operator=self.request.user, status='PUBLISHED')
+        except Exception as e:
+            logger.error(f"Error creando paquete: {e}")
+            raise
 
 class IncludedItemViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = IncludedItem.objects.all()
