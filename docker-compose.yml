@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # Servicio del Backend (Django API)
   backend:
     build: ./backend
     container_name: ventu_backend
@@ -20,7 +17,6 @@ services:
       - db
     restart: unless-stopped
 
-  # Servicio del Frontend (React App)
   frontend:
     build: ./frontend
     container_name: ventu_frontend
@@ -35,7 +31,6 @@ services:
       - backend
     restart: unless-stopped
 
-  # Servicio de la Base de Datos (PostgreSQL)
   db:
     image: postgres:15-alpine
     container_name: ventu_db
