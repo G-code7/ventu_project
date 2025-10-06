@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../Auth/authContext";
-import { XIcon } from "../Shared/icons";
+import { XIcon, UploadIcon, SpinnerIcon } from "../Shared/icons";
 
 // Lista de estados de Venezuela
 const VENEZUELA_STATES = [
@@ -42,6 +42,12 @@ const ENVIRONMENT_OPTIONS = [
   { value: "LUXURY", label: "🌟 Lujo/Exclusivo" },
 ];
 
+// Comisión fija
+const COMMISSION_RATE = 0.1;
+// Manejo de imagenes
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 function CreatePackagePage() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -71,8 +77,6 @@ function CreatePackagePage() {
   const [selectedIncludes, setSelectedIncludes] = useState([]);
   const [whatIsNotIncluded, setWhatIsNotIncluded] = useState([]);
   const [highlights, setHighlights] = useState([""]);
-
-  // Estados para arrays dinámicos
   const [itinerary, setItinerary] = useState([{ day: 1, description: "" }]);
   const [variablePrices, setVariablePrices] = useState([
     { type: "", price: "" },
@@ -81,9 +85,13 @@ function CreatePackagePage() {
   // Estados para archivos
   const [mainImage, setMainImage] = useState(null);
   const [galleryImages, setGalleryImages] = useState([]);
+  const [mainImagePreview, setMainImagePreview] = useState(null);
+  const [galleryImagePreviews, setGalleryImagePreviews] = useState([]);
 
-  // Comisión fija - no editable
-  const COMMISSION_RATE = 0.1; // 10% fijo
+  // --- Referencias para Autofoco ---
+  const lastHighlightRef = useRef(null);
+  const lastItineraryRef = useRef(null);
+  const lastVariablePriceRef = useRef(null);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -93,22 +101,130 @@ function CreatePackagePage() {
           axiosInstance.get("/tags/"),
           axiosInstance.get("/included-items/"),
         ]);
-        setTags(tagsResponse.data);
-        setAvailableIncludes(includesResponse.data);
+        setTags(Array.isArray(tagsResponse.data) ? tagsResponse.data : []);
+        setAvailableIncludes(
+          Array.isArray(includesResponse.data) ? includesResponse.data : []
+        );
       } catch (err) {
         console.error("Error cargando datos iniciales:", err);
         setError("No se pudieron cargar las opciones. Verifica tu conexión.");
+        setTags([]);
+        setAvailableIncludes([]);
       }
     };
     fetchInitialData();
   }, []);
 
+  // --- Autofoco en nuevos elementos ---
+  useEffect(() => {
+    if (lastHighlightRef.current) {
+      lastHighlightRef.current.focus();
+    }
+  }, [highlights.length]);
+
+  useEffect(() => {
+    if (lastItineraryRef.current) {
+      lastItineraryRef.current.focus();
+    }
+  }, [itinerary.length]);
+
+  useEffect(() => {
+    if (lastVariablePriceRef.current) {
+      lastVariablePriceRef.current.focus();
+    }
+  }, [variablePrices.length]);
+
   // Manejar cambios en campos simples
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCheckboxChange = (stateSetter, id) => {
+    stateSetter((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // --- Manejadores de Listas Dinámicas (con "Enter" y autofoco) ---
+  const handleDynamicListChange = (stateSetter, index, value, field = null) => {
+    stateSetter((prev) =>
+      prev.map((item, i) =>
+        i === index ? (field ? { ...item, [field]: value } : value) : item
+      )
+    );
+  };
+
+  const addDynamicItem = (stateSetter, newItem) => {
+    stateSetter((prev) => [...prev, newItem]);
+  };
+
+  const removeDynamicItem = (stateSetter, index) => {
+    stateSetter((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleKeyDown = (e, onEnter) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onEnter();
+    }
+  };
+
+  // --- Manejo de Imágenes con Previsualización ---
+  const handleMainImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setError(
+          "Imagen principal: Solo se permiten imágenes JPG, PNG o WebP."
+        );
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setError("Imagen principal: La imagen no debe superar los 5MB.");
+        return;
+      }
+      setMainImage(file);
+      setMainImagePreview(URL.createObjectURL(file));
+      setError("");
+    }
+  };
+
+  const handleGalleryImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    const newImages = [];
+    const newPreviews = [];
+    let galleryError = "";
+
+    files.forEach((file) => {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        galleryError = "Galería: Solo se permiten imágenes JPG, PNG o WebP.";
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        galleryError = "Galería: Una o más imágenes superan los 5MB.";
+        return;
+      }
+      newImages.push(file);
+      newPreviews.push(URL.createObjectURL(file));
+    });
+
+    if (galleryError) {
+      setError(galleryError);
+    } else {
+      setGalleryImages((prev) => [...prev, ...newImages]);
+      setGalleryImagePreviews((prev) => [...prev, ...newPreviews]);
+      setError("");
+    }
+  };
+
+  const removeGalleryImage = (index) => {
+    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
+    setGalleryImagePreviews((prev) => {
+      const newPreviews = prev.filter((_, i) => i !== index);
+      // Revocar el Object URL para liberar memoria
+      URL.revokeObjectURL(prev[index]);
+      return newPreviews;
+    });
   };
 
   // Manejar tags
@@ -191,23 +307,19 @@ function CreatePackagePage() {
     }
   };
 
-  // Manejo de imagenes
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    
+
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Solo se permiten imágenes JPG, PNG o WebP');
+      setError("Solo se permiten imágenes JPG, PNG o WebP");
       return;
     }
-    
+
     if (file.size > MAX_FILE_SIZE) {
-      setError('La imagen no debe superar 5MB');
+      setError("La imagen no debe superar 5MB");
       return;
     }
-    
+
     setMainImage(file);
   };
 
@@ -291,7 +403,7 @@ function CreatePackagePage() {
 
   const finalPrice = formData.base_price
     ? (parseFloat(formData.base_price) / (1 - COMMISSION_RATE)).toFixed(2)
-    : 0;
+    : "0.00";
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -591,9 +703,12 @@ function CreatePackagePage() {
           <p className="text-sm text-gray-600 mb-4">
             Lista los aspectos más atractivos de tu tour que quieres resaltar.
           </p>
-          
+
           {highlights.map((highlight, index) => (
-            <div key={index} className="flex gap-4 items-start border rounded-lg p-4 bg-green-50">
+            <div
+              key={index}
+              className="flex gap-4 items-start border rounded-lg p-4 bg-green-50"
+            >
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Punto destacado {index + 1}
@@ -631,52 +746,55 @@ function CreatePackagePage() {
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Precios Variables y Extras
           </legend>
-          <p className="text-sm text-gray-600 mb-4">
-            Define precios especiales para diferentes tipos de participantes o
-            servicios extras.
-          </p>
-
           {variablePrices.map((price, index) => (
             <div
               key={index}
-              className="flex gap-4 items-start border rounded-lg p-4 bg-gray-50"
+              className="flex gap-4 items-center p-4 bg-gray-50 rounded-lg"
             >
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Participante o Servicio
-                  </label>
-                  <input
-                    type="text"
-                    value={price.type}
-                    onChange={(e) =>
-                      updateVariablePrice(index, "type", e.target.value)
-                    }
-                    placeholder="Ej: Actividades, Seguro de viajes, Comidas..."
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Precio Adicional (USD)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={price.price}
-                    onChange={(e) =>
-                      updateVariablePrice(index, "price", e.target.value)
-                    }
-                    placeholder="0.00"
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                  />
-                </div>
-              </div>
+              <input
+                ref={
+                  index === variablePrices.length - 1
+                    ? lastVariablePriceRef
+                    : null
+                }
+                type="text"
+                value={price.type}
+                onChange={(e) =>
+                  handleDynamicListChange(
+                    setVariablePrices,
+                    index,
+                    e.target.value,
+                    "type"
+                  )
+                }
+                placeholder="Ej: Niños, Adulto Mayor, Extra..."
+                className="w-1/2 rounded-md border-gray-300"
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={price.price}
+                onChange={(e) =>
+                  handleDynamicListChange(
+                    setVariablePrices,
+                    index,
+                    e.target.value,
+                    "price"
+                  )
+                }
+                onKeyDown={(e) =>
+                  handleKeyDown(e, () =>
+                    addDynamicItem(setVariablePrices, { type: "", price: "" })
+                  )
+                }
+                placeholder="Precio Adicional (USD)"
+                className="w-1/2 rounded-md border-gray-300"
+              />
               {variablePrices.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => removeVariablePrice(index)}
-                  className="mt-6 text-red-500 hover:text-red-700 p-2"
+                  onClick={() => removeDynamicItem(setVariablePrices, index)}
+                  className="text-red-500 hover:text-red-700 p-2"
                 >
                   <XIcon className="w-5 h-5" />
                 </button>
@@ -685,39 +803,51 @@ function CreatePackagePage() {
           ))}
           <button
             type="button"
-            onClick={addVariablePrice}
+            onClick={() =>
+              addDynamicItem(setVariablePrices, { type: "", price: "" })
+            }
             className="w-full py-2 border-2 border-dashed border-purple-300 text-purple-500 hover:bg-purple-50 rounded-lg font-semibold"
           >
-            + Añadir precio variable o extra
+            + Añadir precio variable
           </button>
         </fieldset>
+
         {/* Itinerario */}
         <fieldset className="space-y-4">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Itinerario Detallado
           </legend>
           {itinerary.map((day, index) => (
-            <div
-              key={index}
-              className="flex gap-4 items-start border rounded-lg p-4 bg-gray-50"
-            >
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Día {index + 1}
-                </label>
-                <textarea
-                  value={day.description}
-                  onChange={(e) => updateItineraryDay(index, e.target.value)}
-                  placeholder={`Describe las actividades del día ${index + 1}`}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                  rows="3"
-                />
-              </div>
+            <div key={index} className="flex gap-4 items-start">
+              <span className="font-bold mt-2">Día {index + 1}:</span>
+              <textarea
+                ref={index === itinerary.length - 1 ? lastItineraryRef : null}
+                value={day.description}
+                onChange={(e) =>
+                  handleDynamicListChange(
+                    setItinerary,
+                    index,
+                    e.target.value,
+                    "description"
+                  )
+                }
+                onKeyDown={(e) =>
+                  handleKeyDown(e, () =>
+                    addDynamicItem(setItinerary, {
+                      day: itinerary.length + 1,
+                      description: "",
+                    })
+                  )
+                }
+                placeholder={`Describe las actividades del día ${index + 1}`}
+                className="flex-grow rounded-md"
+                rows="3"
+              />
               {itinerary.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => removeItineraryDay(index)}
-                  className="mt-6 text-red-500 hover:text-red-700 p-2"
+                  onClick={() => removeDynamicItem(setItinerary, index)}
+                  className="mt-2 text-red-500 hover:text-red-700 p-2"
                 >
                   <XIcon className="w-5 h-5" />
                 </button>
@@ -726,7 +856,12 @@ function CreatePackagePage() {
           ))}
           <button
             type="button"
-            onClick={addItineraryDay}
+            onClick={() =>
+              addDynamicItem(setItinerary, {
+                day: itinerary.length + 1,
+                description: "",
+              })
+            }
             className="w-full py-2 border-2 border-dashed border-orange-300 text-orange-500 hover:bg-orange-50 rounded-lg font-semibold"
           >
             + Añadir día al itinerario
@@ -734,40 +869,79 @@ function CreatePackagePage() {
         </fieldset>
 
         {/* Sección de Imágenes */}
-        <fieldset className="space-y-4">
+        <fieldset className="space-y-6">
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Imágenes
           </legend>
+          {/* Main Image */}
           <div>
-            <label
-              htmlFor="main_image"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label className="block text-sm font-medium text-gray-700">
               Imagen Principal
             </label>
-            <input
-              type="file"
-              name="main_image"
-              id="main_image"
-              onChange={(e) => setMainImage(e.target.files[0])}
-              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
-            />
+            <div className="mt-2 flex items-center gap-4">
+              {mainImagePreview ? (
+                <img
+                  src={mainImagePreview}
+                  alt="Vista previa"
+                  className="h-24 w-24 object-cover rounded-lg"
+                />
+              ) : (
+                <div className="h-24 w-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                  <UploadIcon className="w-8 h-8" />
+                </div>
+              )}
+              <input
+                type="file"
+                id="main_image"
+                onChange={handleMainImageChange}
+                className="hidden"
+              />
+              <label
+                htmlFor="main_image"
+                className="cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {mainImage ? "Cambiar" : "Seleccionar"}
+              </label>
+            </div>
           </div>
+
+          {/* Gallery Images */}
           <div>
-            <label
-              htmlFor="gallery_images"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Imágenes de Galería (selección múltiple)
+            <label className="block text-sm font-medium text-gray-700">
+              Imágenes de Galería
             </label>
-            <input
-              type="file"
-              name="gallery_images"
-              id="gallery_images"
-              multiple
-              onChange={(e) => setGalleryImages(Array.from(e.target.files))}
-              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
+            <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+              {galleryImagePreviews.map((preview, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={preview}
+                    alt={`Galería ${index + 1}`}
+                    className="h-24 w-full object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => removeGalleryImage(index)}
+                    type="button"
+                    className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white rounded-full p-1 leading-none"
+                  >
+                    <XIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <label
+                htmlFor="gallery_images"
+                className="cursor-pointer h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-orange-500 hover:text-orange-500"
+              >
+                <UploadIcon className="w-8 h-8" />
+                <span className="text-xs mt-1">Añadir</span>
+                <input
+                  type="file"
+                  id="gallery_images"
+                  multiple
+                  onChange={handleGalleryImagesChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
         </fieldset>
 
@@ -785,10 +959,10 @@ function CreatePackagePage() {
                 <input
                   type="checkbox"
                   checked={selectedTags.includes(tag.id)}
-                  onChange={() => handleTagChange(tag.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  onChange={() => handleCheckboxChange(setSelectedTags, tag.id)}
+                  className="h-4 w-4 rounded"
                 />
-                <span className="text-sm text-gray-700">{tag.name}</span>
+                <span>{tag.name}</span>
               </label>
             ))}
           </div>
@@ -799,22 +973,26 @@ function CreatePackagePage() {
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             ¿Qué Incluye el Paquete?
           </legend>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-            {availableIncludes.map((item) => (
-              <label
-                key={item.id}
-                className="flex items-center space-x-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIncludes.includes(item.id)}
-                  onChange={() => handleIncludeChange(item.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                />
-                <span className="text-sm text-gray-700">{item.name}</span>
-              </label>
-            ))}
-          </div>
+          {availableIncludes && availableIncludes.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+              {availableIncludes.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIncludes.includes(item.id)}
+                    onChange={() => handleIncludeChange(item.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">{item.name}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic">Cargando opciones...</p>
+          )}
         </fieldset>
 
         {/* Qué NO Incluye */}
@@ -831,18 +1009,20 @@ function CreatePackagePage() {
                 <input
                   type="checkbox"
                   checked={whatIsNotIncluded.includes(item.id)}
-                  onChange={() => handleNotIncludeChange(item.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  onChange={() =>
+                    handleCheckboxChange(setWhatIsNotIncluded, item.id)
+                  }
+                  className="h-4 w-4 rounded"
                 />
-                <span className="text-sm text-gray-700">{item.name}</span>
+                <span>{item.name}</span>
               </label>
             ))}
           </div>
         </fieldset>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800 font-medium">{error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 font-medium">
+            {error}
           </div>
         )}
 
@@ -850,15 +1030,16 @@ function CreatePackagePage() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-6 py-3 border rounded-lg hover:bg-gray-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2"
           >
+            {loading && <SpinnerIcon className="w-5 h-5" />}
             {loading ? "Creando..." : "Publicar Paquete"}
           </button>
         </div>

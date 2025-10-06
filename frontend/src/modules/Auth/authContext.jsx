@@ -22,11 +22,17 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('authTokens');
     }, []);
 
+    // 🔧 FUNCIÓN FALTANTE: loginUser
     const loginUser = useCallback((userData) => {
         setUser(userData);
+        
+        // Recargar tokens desde localStorage después del login
+        const tokens = localStorage.getItem('authTokens');
+        if (tokens) {
+            setAuthTokens(JSON.parse(tokens));
+        }
     }, []);
 
-    // 🎯 NUEVA FUNCIÓN: Obtener datos completos del usuario desde el backend
     const fetchUserProfile = useCallback(async () => {
         try {
             const response = await axiosInstance.get('/users/me/');
@@ -62,7 +68,6 @@ export function AuthProvider({ children }) {
                     localStorage.setItem('authTokens', JSON.stringify(newTokens));
                     setAuthTokens(newTokens);
                     
-                    // 🎯 Obtener datos completos del usuario después de refresh
                     const userProfile = await fetchUserProfile();
                     setUser(userProfile);
                     
@@ -73,17 +78,14 @@ export function AuthProvider({ children }) {
             } else {
                 setAuthTokens(parsedTokens);
                 
-                // 🎯 Obtener datos completos del usuario al cargar la app
                 try {
                     const userProfile = await fetchUserProfile();
                     setUser(userProfile);
                 } catch (profileError) {
                     console.error("Error fetching user profile:", profileError);
-                    // Si falla obtener el perfil, al menos usar los datos básicos del token
                     setUser({
                         id: decodedToken.user_id,
                         email: decodedToken.email,
-                        // Agregar campos básicos que podrían estar en el token
                         username: decodedToken.username || '',
                         first_name: decodedToken.first_name || '',
                         last_name: decodedToken.last_name || '',
@@ -153,7 +155,6 @@ export function AuthProvider({ children }) {
                             localStorage.setItem('authTokens', JSON.stringify(newTokens));
                             setAuthTokens(newTokens);
                             
-                            // 🎯 Obtener perfil actualizado después del refresh
                             const userProfile = await fetchUserProfile();
                             setUser(userProfile);
                             

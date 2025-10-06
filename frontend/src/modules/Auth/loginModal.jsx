@@ -10,6 +10,7 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
     e.preventDefault();
     setError("");
     const data = Object.fromEntries(new FormData(e.target).entries());
+    
     try {
       const response = await axiosInstance.post("/auth/login/", data);
 
@@ -17,18 +18,24 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
         access: response.data.access,
         refresh: response.data.refresh,
       };
-
-      // 🎯 Obtener datos completos del usuario después del login
+      localStorage.setItem('authTokens', JSON.stringify(tokens));
       try {
-        const userResponse = await axiosInstance.get("/users/me/");
+        const userResponse = await axiosInstance.get("/users/me/", {
+          headers: {
+            Authorization: `Bearer ${tokens.access}`
+          }
+        });
         const userData = userResponse.data;
-        loginUser(tokens, userData);
+        loginUser(userData);
         onClose();
       } catch (userError) {
         console.error("Error fetching user profile:", userError);
-        // Si falla, usar los datos básicos del token
-        const userData = response.data.user || jwtDecode(tokens.access);
-        loginUser(tokens, userData);
+        // Si falla, usar los datos básicos del response
+        const userData = response.data.user || {
+          id: response.data.user_id,
+          email: data.email
+        };
+        loginUser(userData);
         onClose();
       }
     } catch (err) {
@@ -49,6 +56,7 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
       setError(errorMessage);
     }
   };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Bienvenido de vuelta">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -91,4 +99,5 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
     </Modal>
   );
 }
+
 export default LoginModal;

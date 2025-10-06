@@ -1,5 +1,4 @@
 import React from 'react';
-// CORRECCIÓN: Se estandarizan las rutas de importación a minúsculas y se añade la extensión.
 import { useAuth } from '../Auth/authContext.jsx';
 import OperatorDashboard from './operatorDashboard.jsx';
 
