@@ -29,6 +29,9 @@ ENV/
 .env
 .env.*
 !.env.example
+backend/.env
+frontend/.env.local
+frontend/.env.production
 
 # Docker
 # -----------------------------------------------------------------------------
