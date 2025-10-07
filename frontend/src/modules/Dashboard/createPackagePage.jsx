@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../Auth/authContext";
 import { XIcon, UploadIcon, SpinnerIcon } from "../Shared/icons";
+import { useToast } from '../../hooks/useToast';
+import ToastContainer from '../Toast/toastContainer';
 
-// Lista de estados de Venezuela
+// Estados de Venezuela
 const VENEZUELA_STATES = [
   "Amazonas",
   "Anzoátegui",
@@ -87,6 +89,7 @@ function CreatePackagePage() {
   const [galleryImages, setGalleryImages] = useState([]);
   const [mainImagePreview, setMainImagePreview] = useState(null);
   const [galleryImagePreviews, setGalleryImagePreviews] = useState([]);
+  const { toasts, success, error: showError, removeToast } = useToast();
 
   // --- Referencias para Autofoco ---
   const lastHighlightRef = useRef(null);
@@ -174,13 +177,15 @@ function CreatePackagePage() {
     const file = e.target.files[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setError(
-          "Imagen principal: Solo se permiten imágenes JPG, PNG o WebP."
-        );
+        const errorMsg = "Imagen principal: Solo se permiten imágenes JPG, PNG o WebP.";
+        setError(errorMsg);
+        showError(errorMsg);
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        setError("Imagen principal: La imagen no debe superar los 5MB.");
+        const errorMsg = "Imagen principal: La imagen no debe superar los 5MB.";
+        setError(errorMsg);
+        showError(errorMsg);
         return;
       }
       setMainImage(file);
@@ -210,10 +215,13 @@ function CreatePackagePage() {
 
     if (galleryError) {
       setError(galleryError);
+      showError(galleryError);
     } else {
       setGalleryImages((prev) => [...prev, ...newImages]);
       setGalleryImagePreviews((prev) => [...prev, ...newPreviews]);
       setError("");
+
+      success(`${newImages.length} imagen(es) agregada(s) a la galería`, 2000);
     }
   };
 
@@ -382,20 +390,40 @@ function CreatePackagePage() {
         submitData.append("gallery_images", image)
       );
 
-      // 6. Enviar
       const response = await axiosInstance.post("/tours/", submitData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      // toast success
+      success('¡Paquete creado exitosamente!', 3000);
+      setTimeout(() => {
+        navigate("/me", {
+          state: { message: "Paquete creado exitosamente" },
+        });
+      }, 500);
 
-      navigate("/me", {
-        state: { message: "Paquete creado exitosamente" },
-      });
     } catch (err) {
       console.error("Error creando paquete:", err.response?.data);
-      const errorMsg = err.response?.data
-        ? Object.values(err.response.data).flat().join(", ")
-        : "Error al crear el paquete. Verifica todos los campos.";
+      let errorMsg = "Error al crear el paquete. Verifica todos los campos.";
+      
+      if (err.response?.data) {
+        const errors = err.response.data;
+        if (typeof errors === 'object') {
+          const errorMessages = Object.entries(errors)
+            .map(([field, messages]) => {
+              const fieldName = field.replace(/_/g, ' ');
+              const message = Array.isArray(messages) ? messages[0] : messages;
+              return `${fieldName}: ${message}`;
+            })
+            .slice(0, 3); // Mostrar máximo 3 errores
+          
+          errorMsg = errorMessages.join('\n');
+        } else if (typeof errors === 'string') {
+          errorMsg = errors;
+        }
+      }
       setError(errorMsg);
+      showError(errorMsg, 5000);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -1044,6 +1072,7 @@ function CreatePackagePage() {
           </button>
         </div>
       </form>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }

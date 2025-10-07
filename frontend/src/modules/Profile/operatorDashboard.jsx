@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { axiosInstance } from "../Auth/authContext";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import { EditIcon, TrashIcon, EyeIcon, EyeOffIcon, CalendarIcon, UsersIcon, DollarIcon, TrendingUpIcon } from "../Shared/icons";
+import { useToast } from '../../hooks/useToast';
+import ToastContainer from '../Toast/toastContainer';
 
 // Componente de tarjeta de métricas
 const MetricCard = ({ title, value, icon, color, change }) => (
@@ -231,6 +233,7 @@ function OperatorDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState("line"); // 'line', 'bar', 'pie'
+  const { toasts, success, error, warning, info, removeToast } = useToast();
   const navigate = useNavigate();
 
   const fetchPackages = useCallback(async () => {
@@ -281,35 +284,72 @@ function OperatorDashboard() {
   }, [fetchPackages]);
 
   const handleDeletePackage = async (packageId) => {
-  if (window.confirm('¿Estás seguro de que quieres eliminar este paquete? Esta acción no se puede deshacer.')) {
-    try {
-      await axiosInstance.delete(`/tours/${packageId}/`);
-      // Filtrar del array actual
-      setPackages(prevPackages => prevPackages.filter(p => p.id !== packageId));
-    } catch (error) {
-      console.error("Error al eliminar el paquete:", error);
-      alert('Error al eliminar el paquete. Inténtalo de nuevo.');
-    }
-  }
-};
+    const packageToDelete = packages.find(p => p.id === packageId);
+    const packageName = packageToDelete?.title || 'este paquete';
 
-const handleToggleStatus = async (packageId, newStatus) => {
-  try {
-    await axiosInstance.patch(`/tours/${packageId}/`, {
-      is_active: newStatus
-    });
-    
-    // Actualizar el estado local
-    setPackages(prevPackages => 
-      prevPackages.map(pkg => 
-        pkg.id === packageId ? { ...pkg, is_active: newStatus } : pkg
-      )
-    );
-  } catch (error) {
-    console.error("Error al cambiar estado del paquete:", error);
-    alert('Error al cambiar el estado del paquete.');
-  }
-};
+    if (window.confirm(`¿Estás seguro de que quieres eliminar "${packageName}"?\n\nEsta acción no se puede deshacer.`)) {
+      try {
+        await axiosInstance.delete(`/tours/${packageId}/`);
+        setPackages(prevPackages => prevPackages.filter(p => p.id !== packageId));
+        success(`Paquete "${packageName}" eliminado exitosamente`);
+        
+      } catch (error) {
+        console.error("Error al eliminar el paquete:", error);
+        const errorMessage = error.response?.data?.message || 
+                            error.response?.data?.detail || 
+                            'No se pudo eliminar el paquete. Inténtalo de nuevo.';
+        error(errorMessage);
+      }
+    }
+  };
+
+  const handleToggleStatus = async (packageId, newStatus) => {
+    const packageToUpdate = packages.find(p => p.id === packageId);
+    const packageName = packageToUpdate?.title || 'el paquete';
+    const statusText = newStatus ? 'activado' : 'desactivado';
+
+    try {
+      await axiosInstance.patch(`/tours/${packageId}/`, {
+        is_active: newStatus
+      });
+      
+      setPackages(prevPackages => 
+        prevPackages.map(pkg => 
+          pkg.id === packageId ? { ...pkg, is_active: newStatus } : pkg
+        )
+      );
+
+      success(`Paquete "${packageName}" ${statusText} correctamente`);
+      
+    } catch (error) {
+      console.error("Error al cambiar estado del paquete:", error);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.detail || 
+                          'No se pudo cambiar el estado del paquete.';
+      error(errorMessage);
+    }
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await axiosInstance.get("/users/dashboard/");
+        setDashboardData(response.data);
+      } catch (error) {
+        console.error("Error al cargar los datos del dashboard:", error);
+        setDashboardData([]);
+        
+        // 🆕 Notificar error solo si es crítico
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          error('No tienes permisos para acceder a este dashboard');
+        }
+      }
+    };
+
+    fetchDashboardData();
+    fetchPackages();
+  }, [fetchPackages]);
 
   // Datos para gráfico circular (estado de paquetes)
   const packageStatusData = [
@@ -531,6 +571,7 @@ const handleToggleStatus = async (packageId, newStatus) => {
           loading={loading}
         />
       </div>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }
