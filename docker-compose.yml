@@ -9,10 +9,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./backend/.env
-    environment:
-      - DB_HOST=db
-      - DB_PORT=5432
+      - .env
     depends_on:
       - db
     restart: unless-stopped
@@ -37,15 +34,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     env_file:
-      - ./backend/.env
+      - .env
     ports:
       - "5432:5432"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:
