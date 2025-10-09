@@ -21,6 +21,6 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
     },
     // Configuración base para deployment
-    base: './',
+    base: '/',
   }
 })
