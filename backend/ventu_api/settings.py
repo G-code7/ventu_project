@@ -2,6 +2,10 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -161,11 +165,14 @@ REST_FRAMEWORK = {
 # ==============================================================================
 # CORS Configuration
 # ==============================================================================
+# Obtener desde variable de entorno O usar valores por defecto
 CORS_ALLOWED_ORIGINS_ENV = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 
 if CORS_ALLOWED_ORIGINS_ENV:
+    # Si hay variable de entorno, usarla
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_ENV.split(',') if origin.strip()]
 else:
+    # Si no, usar valores por defecto
     CORS_ALLOWED_ORIGINS = [
         "https://ventu-website.onrender.com",
         "http://localhost:3000",
@@ -213,6 +220,15 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = True
+
+# ==============================================================================
+# dj-rest-auth + JWT Configuration
+# ==============================================================================
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = 'ventu-auth'
+JWT_AUTH_REFRESH_COOKIE = 'ventu-refresh-token'
+JWT_AUTH_SECURE = not DEBUG  # True en producción, False en desarrollo
+JWT_AUTH_HTTPONLY = False  # Necesario para que JavaScript pueda leer el token
 
 # ==============================================================================
 # Security Settings
