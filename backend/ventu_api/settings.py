@@ -155,12 +155,21 @@ REST_FRAMEWORK = {
 # ==============================================================================
 # CORS Configuration
 # ==============================================================================
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    'CORS_ALLOWED_ORIGINS',
-    'http://localhost:5173,http://127.0.0.1:5173'
-).split(',')
+CORS_ALLOWED_ORIGINS = [
+    "https://ventu-website.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://ventu-website.onrender.com",
+    "https://ventu-project.onrender.com",
+]
 
 # ==============================================================================
 # Django Allauth Configuration
