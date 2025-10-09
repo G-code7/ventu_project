@@ -6,7 +6,7 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export const axiosInstance = axios.create({ 
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'https://ventu-project.onrender.com/api',
 });
 
 export function AuthProvider({ children }) {
