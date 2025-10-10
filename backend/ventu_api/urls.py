@@ -2,8 +2,10 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from dj_rest_auth.views import PasswordResetView, PasswordResetConfirmView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
+    TokenVerifyView,
     TokenRefreshView,
 )
 
@@ -22,6 +24,9 @@ urlpatterns = [
     # Rutas de tus apps
     path('api/users/', include('users.urls')),
     path('api/', include('tours.urls')),
+
+    # JWT endpoints
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
 
 if settings.DEBUG:

@@ -227,9 +227,19 @@ ACCOUNT_USERNAME_REQUIRED = True
 REST_USE_JWT = True
 JWT_AUTH_COOKIE = 'ventu-auth'
 JWT_AUTH_REFRESH_COOKIE = 'ventu-refresh-token'
-JWT_AUTH_SECURE = not DEBUG  # True en producción, False en desarrollo
-JWT_AUTH_HTTPONLY = False  # Necesario para que JavaScript pueda leer el token
+JWT_AUTH_SECURE = not DEBUG
+JWT_AUTH_HTTPONLY = True
+JWT_AUTH_SAMESITE = 'Lax'
 
+# Configuración específica para dj-rest-auth
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'ventu-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'ventu-refresh-token',
+    'JWT_AUTH_HTTPONLY': True,
+    'SESSION_LOGIN': False,
+    'OLD_PASSWORD_FIELD_ENABLED': True,
+}
 # ==============================================================================
 # Security Settings
 # ==============================================================================
