@@ -292,3 +292,39 @@ LOGGING = {
         },
     },
 }
+# ==============================================================================
+# AWS S3 Configuration para Media Files
+# ==============================================================================
+USE_S3 = os.environ.get('USE_S3', 'False').lower() == 'true'
+
+if USE_S3:
+    # AWS S3 Settings
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    
+    # S3 Object Parameters
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',  # 1 día
+    }
+    
+    # S3 Static & Media Settings
+    AWS_LOCATION = 'static'
+    AWS_DEFAULT_ACL = 'public-read'
+    
+    # Static files (CSS, JavaScript, Images)
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    
+    # Media files (uploads)
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+else:
+    # Local storage (desarrollo)
+    STATIC_URL = '/static/'
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
