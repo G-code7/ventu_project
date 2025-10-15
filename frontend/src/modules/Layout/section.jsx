@@ -1,15 +1,18 @@
 import React from 'react';
 
-function Section({ title, viewAllLink = "#", children }) {
-    return (
-        <section>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-800">{title}</h2>
-                <a href={viewAllLink} className="text-sm font-medium text-orange-500 hover:underline">Ver todo</a>
-            </div>
-            {children}
-        </section>
-    );
+function Section({ title, children }) {
+  return (
+    <section className="py-12">
+      <div className="max-w-[1240px] mx-auto px-6 md:px-8">
+        {title && (
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-8">
+            {title}
+          </h2>
+        )}
+        {children}
+      </div>
+    </section>
+  );
 }
 
 export default Section;
