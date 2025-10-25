@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../Auth/authContext";
 import { XIcon, UploadIcon, SpinnerIcon } from "../Shared/icons";
-import { useToast } from '../../hooks/useToast';
-import ToastContainer from '../Toast/toastContainer';
+import { useToast } from "../../hooks/useToast";
+import ToastContainer from "../Toast/toastContainer";
 
 // Estados de Venezuela
 const VENEZUELA_STATES = [
@@ -104,9 +104,13 @@ function CreatePackagePage() {
           axiosInstance.get("/tags/"),
           axiosInstance.get("/included-items/"),
         ]);
+
         setTags(Array.isArray(tagsResponse.data) ? tagsResponse.data : []);
+        const includesData = includesResponse.data;
         setAvailableIncludes(
-          Array.isArray(includesResponse.data) ? includesResponse.data : []
+          Array.isArray(includesData)
+            ? includesData
+            : includesData.results || []
         );
       } catch (err) {
         console.error("Error cargando datos iniciales:", err);
@@ -394,36 +398,35 @@ function CreatePackagePage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       // toast success
-      success('¡Paquete creado exitosamente!', 3000);
+      success("¡Paquete creado exitosamente!", 3000);
       setTimeout(() => {
         navigate("/me", {
           state: { message: "Paquete creado exitosamente" },
         });
       }, 500);
-
     } catch (err) {
       console.error("Error creando paquete:", err.response?.data);
       let errorMsg = "Error al crear el paquete. Verifica todos los campos.";
-      
+
       if (err.response?.data) {
         const errors = err.response.data;
-        if (typeof errors === 'object') {
+        if (typeof errors === "object") {
           const errorMessages = Object.entries(errors)
             .map(([field, messages]) => {
-              const fieldName = field.replace(/_/g, ' ');
+              const fieldName = field.replace(/_/g, " ");
               const message = Array.isArray(messages) ? messages[0] : messages;
               return `${fieldName}: ${message}`;
             })
             .slice(0, 3); // Mostrar máximo 3 errores
-          
-          errorMsg = errorMessages.join('\n');
-        } else if (typeof errors === 'string') {
+
+          errorMsg = errorMessages.join("\n");
+        } else if (typeof errors === "string") {
           errorMsg = errors;
         }
       }
       setError(errorMsg);
       showError(errorMsg, 5000);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setLoading(false);
     }
@@ -1019,7 +1022,11 @@ function CreatePackagePage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500 italic">Cargando opciones...</p>
+            <p className="text-sm text-gray-500 italic">
+              {availableIncludes === null
+                ? "Cargando opciones..."
+                : "No hay opciones disponibles"}
+            </p>
           )}
         </fieldset>
 
@@ -1028,24 +1035,30 @@ function CreatePackagePage() {
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             ¿Qué NO Incluye el Paquete?
           </legend>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-            {availableIncludes.map((item) => (
-              <label
-                key={item.id}
-                className="flex items-center space-x-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={whatIsNotIncluded.includes(item.id)}
-                  onChange={() =>
-                    handleCheckboxChange(setWhatIsNotIncluded, item.id)
-                  }
-                  className="h-4 w-4 rounded"
-                />
-                <span>{item.name}</span>
-              </label>
-            ))}
-          </div>
+          {availableIncludes && availableIncludes.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+              {availableIncludes.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={whatIsNotIncluded.includes(item.id)}
+                    onChange={() => handleNotIncludeChange(item.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">{item.name}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic">
+              {availableIncludes === null
+                ? "Cargando opciones..."
+                : "No hay opciones disponibles"}
+            </p>
+          )}
         </fieldset>
 
         {error && (

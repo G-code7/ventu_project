@@ -183,7 +183,13 @@ function EditPackagePage() {
 
         // 7. Datos disponibles
         setTags(tagsResponse.data || []);
-        setAvailableIncludes(includesResponse.data || []);
+        
+        const includesData = includesResponse.data;
+        setAvailableIncludes(
+          Array.isArray(includesData) 
+            ? includesData 
+            : (includesData.results || [])
+        );
       } catch (err) {
         console.error("Error cargando paquete:", err);
         setError(

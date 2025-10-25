@@ -4,7 +4,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '../Shared/icons';
 
 function FeaturedDestinations() {
   const destinations = [
-    { name: 'Canaima', tours: 15, image: 'https://lh3.googleusercontent.com/gps-cs-s/AC9h4nojKjDXubFozYOGEQJnUfPmRjugMmT10DQbtEejtaqFGspbefUYa-BM4M8RR6Hxmw27O5VMtSO7_mq5qdMGPOlx03c4piXwuqoizPnNG64DC2Pwue4srcjFoCa1I0g4IL62fGsn=s1360-w1360-h1020-rw' },
+    { name: 'Canaima', tours: 15, image: 'https://photo620x400.mnstatic.com/371537cc289b532e8c09a6f1df03ff52/parque-nacional-canaima.jpg' },
     { name: 'Morrocoy', tours: 25, image: 'https://noticias.com.ve/wp-content/uploads/2019/05/morrocoy.jpg' },
     { name: 'Los Roques', tours: 18, image: 'https://www.adondealirio.com/wp-content/uploads/2020/09/losroques4.jpg' },
     { name: 'Mérida', tours: 30, image: 'https://images.squarespace-cdn.com/content/v1/5d77a7f8ad30356d21445262/1580493463932-NSJ7M1XNO9K687IN3CPV/Pueblo-de-merida-venezuela.jpg' },
