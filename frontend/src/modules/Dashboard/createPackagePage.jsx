@@ -105,7 +105,11 @@ function CreatePackagePage() {
           axiosInstance.get("/included-items/"),
         ]);
 
-        setTags(Array.isArray(tagsResponse.data) ? tagsResponse.data : []);
+        // Para tags
+        const tagsData = tagsResponse.data;
+        setTags(Array.isArray(tagsData) ? tagsData : tagsData.results || []);
+
+        // Para included-items
         const includesData = includesResponse.data;
         setAvailableIncludes(
           Array.isArray(includesData)
@@ -122,7 +126,7 @@ function CreatePackagePage() {
     fetchInitialData();
   }, []);
 
-  // --- Autofoco en nuevos elementos ---
+  // --- Autofoco ---
   useEffect(() => {
     if (lastHighlightRef.current) {
       lastHighlightRef.current.focus();
@@ -181,7 +185,8 @@ function CreatePackagePage() {
     const file = e.target.files[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        const errorMsg = "Imagen principal: Solo se permiten imágenes JPG, PNG o WebP.";
+        const errorMsg =
+          "Imagen principal: Solo se permiten imágenes JPG, PNG o WebP.";
         setError(errorMsg);
         showError(errorMsg);
         return;
@@ -981,21 +986,50 @@ function CreatePackagePage() {
           <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
             Etiquetas
           </legend>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-            {tags.map((tag) => (
-              <label
-                key={tag.id}
-                className="flex items-center space-x-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedTags.includes(tag.id)}
-                  onChange={() => handleCheckboxChange(setSelectedTags, tag.id)}
-                  className="h-4 w-4 rounded"
-                />
-                <span>{tag.name}</span>
-              </label>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+            {tags.map((tag) => {
+              const isSelected = selectedTags.includes(tag.id);
+              return (
+                <div
+                  key={tag.id}
+                  className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
+                    isSelected
+                      ? "bg-green-100 border-green-500 shadow-md"
+                      : "bg-white border-gray-200 hover:border-green-300 hover:bg-green-50"
+                  }`}
+                  onClick={() => handleTagChange(tag.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      {tag.name}
+                    </span>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected
+                          ? "bg-green-500 border-green-500"
+                          : "bg-white border-gray-300"
+                      }`}
+                    >
+                      {isSelected && (
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="3"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </fieldset>
 
@@ -1005,21 +1039,50 @@ function CreatePackagePage() {
             ¿Qué Incluye el Paquete?
           </legend>
           {availableIncludes && availableIncludes.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-              {availableIncludes.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-center space-x-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedIncludes.includes(item.id)}
-                    onChange={() => handleIncludeChange(item.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">{item.name}</span>
-                </label>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+              {availableIncludes.map((item) => {
+                const isSelected = selectedIncludes.includes(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
+                      isSelected
+                        ? "bg-orange-100 border-orange-500 shadow-md"
+                        : "bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50"
+                    }`}
+                    onClick={() => handleIncludeChange(item.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        {item.name}
+                      </span>
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected
+                            ? "bg-orange-500 border-orange-500"
+                            : "bg-white border-gray-300"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg
+                            className="w-3 h-3 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="3"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-gray-500 italic">
@@ -1036,21 +1099,50 @@ function CreatePackagePage() {
             ¿Qué NO Incluye el Paquete?
           </legend>
           {availableIncludes && availableIncludes.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-              {availableIncludes.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-center space-x-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={whatIsNotIncluded.includes(item.id)}
-                    onChange={() => handleNotIncludeChange(item.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">{item.name}</span>
-                </label>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+              {availableIncludes.map((item) => {
+                const isSelected = whatIsNotIncluded.includes(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
+                      isSelected
+                        ? "bg-red-100 border-red-500 shadow-md"
+                        : "bg-white border-gray-200 hover:border-red-300 hover:bg-red-50"
+                    }`}
+                    onClick={() => handleNotIncludeChange(item.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        {item.name}
+                      </span>
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected
+                            ? "bg-red-500 border-red-500"
+                            : "bg-white border-gray-300"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg
+                            className="w-3 h-3 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="3"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-gray-500 italic">
