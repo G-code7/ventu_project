@@ -70,30 +70,22 @@ WSGI_APPLICATION = 'ventu_api.wsgi.application'
 # ==============================================================================
 # Database
 # ==============================================================================
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
-    # Producción (Render) - Usa dj_database_url
+try:
+    import dj_database_url
     DATABASES = {
         'default': dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
+            default=os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3'),
+            conn_max_age=600
         )
     }
-else:
-    # Desarrollo local - Usa variables individuales
+except ImportError:
+    # Fallback para desarrollo sin dj-database-url
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('POSTGRES_DB', 'ventu_db'),
-            'USER': os.environ.get('POSTGRES_USER', 'ventu_user'),
-            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
-            'HOST': os.environ.get('DB_HOST', 'db'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-
 # ==============================================================================
 # Templates
 # ==============================================================================

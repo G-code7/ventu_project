@@ -4,6 +4,7 @@ import Hero from "./hero";
 import FeaturedDestinations from "./featuredDestinations";
 import Section from "../Layout/section";
 import TourCard from "../Tours/tourCard";
+import HomeBanner from "../Home/homeBanner";
 
 function HomePage() {
   const [tours, setTours] = useState([]);
@@ -26,11 +27,18 @@ function HomePage() {
     fetchTours();
   }, []);
 
+  const handleBannerClick = () => {
+    // Aquí puedes redirigir a una página específica, tour destacado, etc.
+    console.log("Banner clickeado - Redirigir a oferta especial");
+    // Ejemplo: navigate('/special-offer');
+  };
+
   return (
     <>
       <Hero />
       <div className="container mx-auto px-6 py-12 space-y-16">
         <FeaturedDestinations />
+
         <Section title="Experiencias Populares">
           {loading && <p className="text-center">Cargando...</p>}
           {error && <p className="text-center text-red-500">{error}</p>}
@@ -40,6 +48,18 @@ function HomePage() {
             ))}
           </div>
         </Section>
+
+        {/* Banner Promocional */}
+        <HomeBanner
+          title="Ahorra viajando a Los Roques hasta un 35% descuento"
+          subtitle="Oferta de tiempo limitado, vive la experiencia paradisíaca de Los Roques con precios especiales"
+          buttonText="Reservar Ahora"
+          discount="35%"
+          image="https://www.adondealirio.com/wp-content/uploads/2020/09/losroques4.jpg"
+          theme="orange"
+          onButtonClick={handleBannerClick}
+          className="my-8"
+        />
       </div>
     </>
   );

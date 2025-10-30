@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../Auth/authContext";
 import { XIcon, UploadIcon, SpinnerIcon } from "../Shared/icons";
 import { useToast } from "../../hooks/useToast";
 import ToastContainer from "../Toast/toastContainer";
+import { useAuth } from "../Auth/authContext";
 
-// Estados de Venezuela
+// Constantes globales
 const VENEZUELA_STATES = [
   "Amazonas",
   "Anzoátegui",
@@ -33,43 +34,102 @@ const VENEZUELA_STATES = [
   "Zulia",
 ];
 
-// Opciones de entorno/ambiente
 const ENVIRONMENT_OPTIONS = [
-  { value: "FESTIVE_MUSIC", label: "🎉 Festivo con Música" },
   { value: "RELAXING_NO_MUSIC", label: "😌 Relajante sin Música" },
-  { value: "ADVENTUROUS", label: "🧗 Aventurero/Extremo" },
-  { value: "CULTURAL", label: "🏛️ Cultural/Educativo" },
-  { value: "ROMANTIC", label: "💝 Romántico" },
-  { value: "FAMILY", label: "👨‍👩‍👧‍👦 Familiar" },
+  { value: "FESTIVE_MUSIC", label: "🎉 Festivo con Música" },
+  { value: "ROMANTIC", label: "💝 Romántico/Parejas" },
+  { value: "FAMILY", label: "👨‍👩‍👧‍👦 Familiar/Infantil" },
   { value: "LUXURY", label: "🌟 Lujo/Exclusivo" },
+  { value: "WELLNESS", label: "💆‍♂️ Wellness/Spa" },
+  { value: "NATURE", label: "🌿 Naturaleza y Senderismo" },
+  { value: "BEACH", label: "🏖️ Playas y Sol" },
+  { value: "ADVENTUROUS", label: "🧗 Aventurero/Extremo" },
+  { value: "MOUNTAIN", label: "⛰️ Montaña y Trekking" },
+  { value: "CULTURAL", label: "🏛️ Cultural/Educativo" },
+  { value: "HISTORICAL", label: "🏺 Histórico/Arqueológico" },
+  { value: "GASTRONOMIC", label: "🍷 Gourmet/Gastronómico" },
+  { value: "URBAN", label: "🏙️ Urbano/Ciudad" },
+]
+
+const AVAILABILITY_TYPES = [
+  {
+    value: "OPEN_DATES",
+    label: "📆 Fechas Abiertas",
+    description:
+      "El cliente puede elegir la fecha dentro de un rango disponible",
+  },
+  {
+    value: "SPECIFIC_DATE",
+    label: "🎯 Fecha Específica",
+    description: "Salida única en una fecha y hora determinada",
+  },
 ];
 
-// Comisión fija
 const COMMISSION_RATE = 0.1;
-// Manejo de imagenes
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// Hook personalizado para manejo de listas dinámicas
+const useDynamicList = (initialValue = []) => {
+  const [items, setItems] = useState(initialValue);
+
+  const addItem = useCallback((newItem) => {
+    setItems((prev) => [...prev, newItem]);
+  }, []);
+
+  const updateItem = useCallback((index, field, value) => {
+    setItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  }, []);
+
+  const removeItem = useCallback((index) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateSimpleItem = useCallback((index, value) => {
+    setItems((prev) => prev.map((item, i) => (i === index ? value : item)));
+  }, []);
+
+  return { items, setItems, addItem, updateItem, removeItem, updateSimpleItem };
+};
 
 function CreatePackagePage() {
   const navigate = useNavigate();
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { toasts, success, error: showError, removeToast } = useToast();
+  const { user } = useAuth();
 
-  // Estados del formulario
+  // Estados del formulario principal
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     state_origin: "Distrito Capital",
     specific_origin: "",
-    state_destination: "Miranda",
+    state_destination: "Miranda", 
     specific_destination: "",
     base_price: "",
     duration_days: 1,
     meeting_point: "Por definir",
     meeting_time: "12:00",
-    // campos nuevos
-    environment: "RELAXING_NO_MUSIC",
+    environment: "FESTIVE_MUSIC",
+    max_capacity: 10,
     group_size: 10,
+
+    operator: user?.id || "",
+    // commission_rate: COMMISSION_RATE, // 0.1
+    status: "PUBLISHED", // o "DRAFT"
+    is_active: true,
+    is_recurring: false,
+    current_bookings: 0,
+
+    // Disponibilidad
+    availability_type: "OPEN_DATES",
+    available_from: "",
+    available_until: "",
+    departure_date: "",
+    departure_time: "",
   });
 
   // Estados para relaciones
@@ -78,25 +138,42 @@ function CreatePackagePage() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedIncludes, setSelectedIncludes] = useState([]);
   const [whatIsNotIncluded, setWhatIsNotIncluded] = useState([]);
-  const [highlights, setHighlights] = useState([""]);
-  const [itinerary, setItinerary] = useState([{ day: 1, description: "" }]);
-  const [variablePrices, setVariablePrices] = useState([
-    { type: "", price: "" },
-  ]);
+
+  // Estados para listas dinámicas usando el hook personalizado
+  const {
+    items: highlights,
+    addItem: addHighlight,
+    updateItem: updateHighlight,
+    removeItem: removeHighlight,
+    updateSimpleItem: updateSimpleHighlight,
+  } = useDynamicList([""]);
+
+  const {
+    items: itinerary,
+    addItem: addItinerary,
+    updateItem: updateItinerary,
+    removeItem: removeItinerary,
+  } = useDynamicList([{ day: 1, description: "" }]);
+
+  const {
+    items: variablePrices,
+    addItem: addVariablePrice,
+    updateItem: updateVariablePrice,
+    removeItem: removeVariablePrice,
+  } = useDynamicList([{ type: "", price: "" }]);
 
   // Estados para archivos
   const [mainImage, setMainImage] = useState(null);
   const [galleryImages, setGalleryImages] = useState([]);
   const [mainImagePreview, setMainImagePreview] = useState(null);
   const [galleryImagePreviews, setGalleryImagePreviews] = useState([]);
-  const { toasts, success, error: showError, removeToast } = useToast();
 
-  // --- Referencias para Autofoco ---
+  // Referencias para autofoco
   const lastHighlightRef = useRef(null);
   const lastItineraryRef = useRef(null);
   const lastVariablePriceRef = useRef(null);
 
-  // Cargar datos iniciales
+  // Cargar datos iniciales optimizado
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -105,330 +182,274 @@ function CreatePackagePage() {
           axiosInstance.get("/included-items/"),
         ]);
 
-        // Para tags
-        const tagsData = tagsResponse.data;
-        setTags(Array.isArray(tagsData) ? tagsData : tagsData.results || []);
-
-        // Para included-items
-        const includesData = includesResponse.data;
+        setTags(tagsResponse.data?.results || tagsResponse.data || []);
         setAvailableIncludes(
-          Array.isArray(includesData)
-            ? includesData
-            : includesData.results || []
+          includesResponse.data?.results || includesResponse.data || []
         );
       } catch (err) {
         console.error("Error cargando datos iniciales:", err);
-        setError("No se pudieron cargar las opciones. Verifica tu conexión.");
-        setTags([]);
-        setAvailableIncludes([]);
+        showError("No se pudieron cargar las opciones. Verifica tu conexión.");
       }
     };
-    fetchInitialData();
-  }, []);
 
-  // --- Autofoco ---
+    fetchInitialData();
+  }, [showError]);
+
+  // Autofoco optimizado
   useEffect(() => {
-    if (lastHighlightRef.current) {
-      lastHighlightRef.current.focus();
-    }
+    lastHighlightRef.current?.focus();
   }, [highlights.length]);
 
   useEffect(() => {
-    if (lastItineraryRef.current) {
-      lastItineraryRef.current.focus();
-    }
+    lastItineraryRef.current?.focus();
   }, [itinerary.length]);
 
   useEffect(() => {
-    if (lastVariablePriceRef.current) {
-      lastVariablePriceRef.current.focus();
-    }
+    lastVariablePriceRef.current?.focus();
   }, [variablePrices.length]);
 
-  // Manejar cambios en campos simples
-  const handleInputChange = (field, value) => {
+  // Manejo de inputs del formulario
+  const handleInputChange = useCallback((field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleCheckboxChange = (stateSetter, id) => {
+  // Manejo de selecciones (tags, includes, etc.)
+  const handleSelectionChange = useCallback((stateSetter, id) => {
     stateSetter((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  }, []);
+
+  // Manejo de archivos optimizado
+  const validateFile = (file) => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return "Solo se permiten imágenes JPG, PNG o WebP.";
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return "La imagen no debe superar los 5MB.";
+    }
+    return null;
   };
 
-  // --- Manejadores de Listas Dinámicas (con "Enter" y autofoco) ---
-  const handleDynamicListChange = (stateSetter, index, value, field = null) => {
-    stateSetter((prev) =>
-      prev.map((item, i) =>
-        i === index ? (field ? { ...item, [field]: value } : value) : item
-      )
-    );
-  };
+  const handleMainImageChange = useCallback(
+    (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-  const addDynamicItem = (stateSetter, newItem) => {
-    stateSetter((prev) => [...prev, newItem]);
-  };
+      const error = validateFile(file);
+      if (error) {
+        showError(`Imagen principal: ${error}`);
+        return;
+      }
 
-  const removeDynamicItem = (stateSetter, index) => {
-    stateSetter((prev) => prev.filter((_, i) => i !== index));
-  };
+      setMainImage(file);
+      setMainImagePreview(URL.createObjectURL(file));
+    },
+    [showError]
+  );
 
-  const handleKeyDown = (e, onEnter) => {
+  const handleGalleryImagesChange = useCallback(
+    (e) => {
+      const files = Array.from(e.target.files);
+      const validFiles = [];
+      const validPreviews = [];
+
+      for (const file of files) {
+        const error = validateFile(file);
+        if (error) {
+          showError(`Galería: ${error}`);
+          continue;
+        }
+        validFiles.push(file);
+        validPreviews.push(URL.createObjectURL(file));
+      }
+
+      if (validFiles.length > 0) {
+        setGalleryImages((prev) => [...prev, ...validFiles]);
+        setGalleryImagePreviews((prev) => [...prev, ...validPreviews]);
+        success(
+          `${validFiles.length} imagen(es) agregada(s) a la galería`,
+          2000
+        );
+      }
+    },
+    [showError, success]
+  );
+
+  const removeGalleryImage = useCallback((index) => {
+    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
+    setGalleryImagePreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  // Funciones para manejo de teclado
+  const handleKeyDown = useCallback((e, onEnter) => {
     if (e.key === "Enter") {
       e.preventDefault();
       onEnter();
     }
-  };
+  }, []);
 
-  // --- Manejo de Imágenes con Previsualización ---
-  const handleMainImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        const errorMsg =
-          "Imagen principal: Solo se permiten imágenes JPG, PNG o WebP.";
-        setError(errorMsg);
-        showError(errorMsg);
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        const errorMsg = "Imagen principal: La imagen no debe superar los 5MB.";
-        setError(errorMsg);
-        showError(errorMsg);
-        return;
-      }
-      setMainImage(file);
-      setMainImagePreview(URL.createObjectURL(file));
-      setError("");
-    }
-  };
+  // Preparación de datos para envío
+  const prepareFormData = useCallback(() => {
+    const submitData = new FormData();
 
-  const handleGalleryImagesChange = (e) => {
-    const files = Array.from(e.target.files);
-    const newImages = [];
-    const newPreviews = [];
-    let galleryError = "";
+    // Campos básicos
+    const allFormData = {
+      ...formData,
+      // Asegurar valores por defecto
+      current_bookings: formData.current_bookings || 0,
+      is_active: formData.is_active !== undefined ? formData.is_active : true,
+      is_recurring: formData.is_recurring || false,
+      status: formData.status || "PUBLISHED",
+      commission_rate: formData.commission_rate || COMMISSION_RATE,
+    };
 
-    files.forEach((file) => {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        galleryError = "Galería: Solo se permiten imágenes JPG, PNG o WebP.";
-        return;
+    Object.keys(allFormData).forEach((key) => {
+      const value = allFormData[key];
+      if (value !== "" && value !== null && value !== undefined) {
+        // Convertir booleanos a string
+        if (typeof value === "boolean") {
+          submitData.append(key, value.toString());
+        }
+        // Convertir números
+        else if (
+          [
+            "base_price",
+            "duration_days",
+            "group_size",
+            "max_capacity",
+            "current_bookings",
+            "commission_rate",
+          ].includes(key)
+        ) {
+          submitData.append(key, parseFloat(value) || 0);
+        } else {
+          submitData.append(key, value);
+        }
       }
-      if (file.size > MAX_FILE_SIZE) {
-        galleryError = "Galería: Una o más imágenes superan los 5MB.";
-        return;
-      }
-      newImages.push(file);
-      newPreviews.push(URL.createObjectURL(file));
     });
 
-    if (galleryError) {
-      setError(galleryError);
-      showError(galleryError);
-    } else {
-      setGalleryImages((prev) => [...prev, ...newImages]);
-      setGalleryImagePreviews((prev) => [...prev, ...newPreviews]);
-      setError("");
-
-      success(`${newImages.length} imagen(es) agregada(s) a la galería`, 2000);
-    }
-  };
-
-  const removeGalleryImage = (index) => {
-    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
-    setGalleryImagePreviews((prev) => {
-      const newPreviews = prev.filter((_, i) => i !== index);
-      // Revocar el Object URL para liberar memoria
-      URL.revokeObjectURL(prev[index]);
-      return newPreviews;
+    // Datos estructurados
+    const itineraryObj = {};
+    itinerary.forEach((item, index) => {
+      if (item.description.trim()) {
+        itineraryObj[`Día ${index + 1}`] = item.description;
+      }
     });
-  };
-
-  // Manejar tags
-  const handleTagChange = (tagId) => {
-    setSelectedTags((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
-    );
-  };
-
-  // Manejar items incluidos
-  const handleIncludeChange = (itemId) => {
-    setSelectedIncludes((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
-
-  // Manejar items NO incluidos
-  const handleNotIncludeChange = (itemId) => {
-    setWhatIsNotIncluded((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
-
-  // Itinerario - funciones optimizadas
-  const addItineraryDay = () => {
-    setItinerary((prev) => [
-      ...prev,
-      { day: prev.length + 1, description: "" },
-    ]);
-  };
-
-  const updateItineraryDay = (index, value) => {
-    setItinerary((prev) =>
-      prev.map((day, i) => (i === index ? { ...day, description: value } : day))
-    );
-  };
-
-  const removeItineraryDay = (index) => {
-    if (itinerary.length > 1) {
-      setItinerary((prev) => prev.filter((_, i) => i !== index));
+    if (Object.keys(itineraryObj).length > 0) {
+      submitData.append("itinerary", JSON.stringify(itineraryObj));
     }
-  };
 
-  // Highlights - funciones
-  const addHighlight = () => {
-    setHighlights((prev) => [...prev, ""]);
-  };
-
-  const updateHighlight = (index, value) => {
-    setHighlights((prev) =>
-      prev.map((item, i) => (i === index ? value : item))
-    );
-  };
-
-  const removeHighlight = (index) => {
-    if (highlights.length > 1) {
-      setHighlights((prev) => prev.filter((_, i) => i !== index));
+    const pricesObj = {};
+    variablePrices.forEach((item) => {
+      if (item.type && item.price) {
+        pricesObj[item.type] = parseFloat(item.price);
+      }
+    });
+    if (Object.keys(pricesObj).length > 0) {
+      submitData.append("variable_prices", JSON.stringify(pricesObj));
     }
-  };
-  // Precios variables
-  const addVariablePrice = () => {
-    setVariablePrices((prev) => [...prev, { type: "", price: "" }]);
-  };
 
-  const updateVariablePrice = (index, field, value) => {
-    setVariablePrices((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    const highlightsArray = highlights.filter(
+      (highlight) => highlight.trim() !== ""
     );
-  };
-
-  const removeVariablePrice = (index) => {
-    if (variablePrices.length > 1) {
-      setVariablePrices((prev) => prev.filter((_, i) => i !== index));
+    if (highlightsArray.length > 0) {
+      submitData.append("highlights", JSON.stringify(highlightsArray));
     }
-  };
 
-  // const handleImageUpload = (e) => {
-  //   const file = e.target.files[0];
+    // RELACIONES - USAR LOS NOMBRES CORRECTOS
+    selectedTags.forEach((tagId) => submitData.append("tag_ids", tagId));
+    selectedIncludes.forEach((itemId) =>
+      submitData.append("included_item_ids", itemId)
+    );
+    whatIsNotIncluded.forEach((itemId) =>
+      submitData.append("not_included_item_ids", itemId)
+    );
 
-  //   if (!ALLOWED_TYPES.includes(file.type)) {
-  //     setError("Solo se permiten imágenes JPG, PNG o WebP");
-  //     return;
-  //   }
+    // Imágenes
+    if (mainImage) submitData.append("main_image", mainImage);
+    galleryImages.forEach((image) =>
+      submitData.append("gallery_images", image)
+    );
 
-  //   if (file.size > MAX_FILE_SIZE) {
-  //     setError("La imagen no debe superar 5MB");
-  //     return;
-  //   }
+    return submitData;
+  }, [
+    formData,
+    itinerary,
+    variablePrices,
+    highlights,
+    selectedTags,
+    selectedIncludes,
+    whatIsNotIncluded,
+    mainImage,
+    galleryImages,
+  ]);
 
-  //   setMainImage(file);
-  // };
-
-  // Envío del formulario - OPTIMIZADO
+  // Envío del formulario optimizado
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const submitData = new FormData();
-
-      // 1. Campos básicos (NO incluir commission_rate - se maneja automáticamente en el backend)
-      Object.keys(formData).forEach((key) => {
-        submitData.append(key, formData[key]);
-      });
-
-      // 2. Itinerario como JSON válido
-      const itineraryObj = {};
-      itinerary.forEach((item, index) => {
-        if (item.description.trim()) {
-          itineraryObj[`Día ${index + 1}`] = item.description;
+      // Validaciones de disponibilidad
+      if (formData.availability_type === "OPEN_DATES") {
+        if (!formData.available_from || !formData.available_until) {
+          throw new Error(
+            "Para fechas abiertas, debe especificar el rango completo de fechas."
+          );
         }
-      });
-      if (Object.keys(itineraryObj).length > 0) {
-        submitData.append("itinerary", JSON.stringify(itineraryObj));
-      }
-
-      // 3. Precios variables como JSON válido
-      const pricesObj = {};
-      variablePrices.forEach((item) => {
-        if (item.type && item.price) {
-          pricesObj[item.type] = parseFloat(item.price);
+        if (
+          new Date(formData.available_from) >=
+          new Date(formData.available_until)
+        ) {
+          throw new Error(
+            "La fecha de inicio debe ser anterior a la fecha de fin."
+          );
         }
-      });
-      if (Object.keys(pricesObj).length > 0) {
-        submitData.append("variable_prices", JSON.stringify(pricesObj));
+      } else if (formData.availability_type === "SPECIFIC_DATE") {
+        if (!formData.departure_date) {
+          throw new Error(
+            "Para fecha específica, debe especificar la fecha de salida."
+          );
+        }
       }
 
-      // Highlights como JSON válido
-      const highlightsArray = highlights.filter(
-        (highlight) => highlight.trim() !== ""
-      );
-      if (highlightsArray.length > 0) {
-        submitData.append("highlights", JSON.stringify(highlightsArray));
-      }
+      const submitData = prepareFormData();
 
-      // 4. Relaciones
-      selectedTags.forEach((tagId) => submitData.append("tag_ids", tagId));
-      selectedIncludes.forEach((itemId) =>
-        submitData.append("included_item_ids", itemId)
-      );
-      whatIsNotIncluded.forEach((itemId) =>
-        submitData.append("what_is_not_included_ids", itemId)
-      );
-
-      // 5. Imágenes
-      if (mainImage) submitData.append("main_image", mainImage);
-      galleryImages.forEach((image) =>
-        submitData.append("gallery_images", image)
-      );
-
-      const response = await axiosInstance.post("/tours/", submitData, {
+      await axiosInstance.post("/tours/", submitData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      // toast success
+
       success("¡Paquete creado exitosamente!", 3000);
       setTimeout(() => {
-        navigate("/me", {
-          state: { message: "Paquete creado exitosamente" },
-        });
+        navigate("/me", { state: { message: "Paquete creado exitosamente" } });
       }, 500);
     } catch (err) {
       console.error("Error creando paquete:", err.response?.data);
-      let errorMsg = "Error al crear el paquete. Verifica todos los campos.";
 
+      let errorMsg = "Error al crear el paquete. Verifica todos los campos.";
       if (err.response?.data) {
         const errors = err.response.data;
         if (typeof errors === "object") {
           const errorMessages = Object.entries(errors)
+            .slice(0, 3)
             .map(([field, messages]) => {
               const fieldName = field.replace(/_/g, " ");
               const message = Array.isArray(messages) ? messages[0] : messages;
               return `${fieldName}: ${message}`;
-            })
-            .slice(0, 3); // Mostrar máximo 3 errores
-
+            });
           errorMsg = errorMessages.join("\n");
         } else if (typeof errors === "string") {
           errorMsg = errors;
         }
+      } else if (err.message) {
+        errorMsg = err.message;
       }
+
       setError(errorMsg);
       showError(errorMsg, 5000);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -437,9 +458,64 @@ function CreatePackagePage() {
     }
   };
 
+  // Cálculo del precio final
   const finalPrice = formData.base_price
-    ? (parseFloat(formData.base_price) / (1 - COMMISSION_RATE)).toFixed(2)
+    ? (parseFloat(formData.base_price) * (1 + COMMISSION_RATE)).toFixed(2)
     : "0.00";
+
+  // Componente reutilizable para checkboxes
+  const CheckboxGrid = ({
+    items,
+    selectedItems,
+    onSelectionChange,
+    colorClass,
+  }) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+      {items.map((item) => {
+        const isSelected = selectedItems.includes(item.id);
+        return (
+          <div
+            key={item.id}
+            className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
+              isSelected
+                ? `${colorClass.selected} border-current shadow-md`
+                : "bg-white border-gray-200 hover:border-current hover:bg-gray-50"
+            }`}
+            onClick={() => onSelectionChange(item.id)}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">
+                {item.name}
+              </span>
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  isSelected
+                    ? "bg-current border-current"
+                    : "bg-white border-gray-300"
+                }`}
+              >
+                {isSelected && (
+                  <svg
+                    className="w-3 h-3 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="3"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -447,7 +523,7 @@ function CreatePackagePage() {
         Crear Nuevo Paquete Turístico
       </h1>
 
-      {/* Previsualización de precio*/}
+      {/* Previsualización de precio */}
       {formData.base_price && (
         <div className="bg-blue-50 p-4 rounded-lg mb-6">
           <p className="text-blue-800 font-semibold">
@@ -458,10 +534,6 @@ function CreatePackagePage() {
               %)
             </span>
           </p>
-          <p className="text-xs text-blue-600 mt-1">
-            * La comisión del {COMMISSION_RATE * 100}% es fija y se aplica
-            automáticamente
-          </p>
         </div>
       )}
 
@@ -469,67 +541,39 @@ function CreatePackagePage() {
         onSubmit={handleSubmit}
         className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8"
       >
-        {/* Información Básica  */}
-        <fieldset className="space-y-4">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Información Básica
-          </legend>
 
+        {/* Información Básica */}
+        <FormSection title="📋 Información Básica">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Título */}
-            <div>
-              <label
-                htmlFor="title"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Título del Paquete
-              </label>
+            <FormField label="Título del Paquete" required>
               <input
                 type="text"
-                id="title"
                 value={formData.title}
                 onChange={(e) => handleInputChange("title", e.target.value)}
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="Ej: Aventura en Canaima"
               />
-            </div>
+            </FormField>
 
-            {/* Precio Base */}
-            <div>
-              <label
-                htmlFor="base_price"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Precio Base (USD)
-              </label>
+            <FormField label="Precio Base (USD)" required>
               <input
                 type="number"
-                id="base_price"
                 step="0.01"
                 value={formData.base_price}
                 onChange={(e) =>
                   handleInputChange("base_price", e.target.value)
                 }
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="150.00"
               />
-            </div>
+            </FormField>
 
-            {/* Estado de Origen */}
-            <div>
-              <label
-                htmlFor="state_origin"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Estado de Origen
-              </label>
+            <FormField label="Estado de Origen">
               <select
-                id="state_origin"
                 value={formData.state_origin}
                 onChange={(e) =>
                   handleInputChange("state_origin", e.target.value)
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
               >
                 {VENEZUELA_STATES.map((state) => (
                   <option key={state} value={state}>
@@ -537,43 +581,25 @@ function CreatePackagePage() {
                   </option>
                 ))}
               </select>
-            </div>
+            </FormField>
 
-            {/* Lugar Específico de Origen */}
-            <div>
-              <label
-                htmlFor="specific_origin"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Lugar Específico de Origen
-              </label>
+            <FormField label="Lugar Específico de Origen">
               <input
                 type="text"
-                id="specific_origin"
                 value={formData.specific_origin}
                 onChange={(e) =>
                   handleInputChange("specific_origin", e.target.value)
                 }
-                placeholder="Ej: Aeropuerto de Maiquetía, Terminal de La Bandera"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="Ej: Aeropuerto de Maiquetía"
               />
-            </div>
+            </FormField>
 
-            {/* Estado de Destino */}
-            <div>
-              <label
-                htmlFor="state_destination"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Estado de Destino
-              </label>
+            <FormField label="Estado de Destino">
               <select
-                id="state_destination"
                 value={formData.state_destination}
                 onChange={(e) =>
                   handleInputChange("state_destination", e.target.value)
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
               >
                 {VENEZUELA_STATES.map((state) => (
                   <option key={state} value={state}>
@@ -581,84 +607,37 @@ function CreatePackagePage() {
                   </option>
                 ))}
               </select>
-            </div>
+            </FormField>
 
-            {/* Destino Específico */}
-            <div>
-              <label
-                htmlFor="specific_destination"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Destino Específico
-              </label>
+            <FormField label="Destino Específico">
               <input
                 type="text"
-                id="specific_destination"
                 value={formData.specific_destination}
                 onChange={(e) =>
                   handleInputChange("specific_destination", e.target.value)
                 }
-                placeholder="Ej: Playa Colorada, Parque Nacional Morrocoy"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="Ej: Playa Colorada"
               />
-            </div>
+            </FormField>
 
-            {/* Duración */}
-            <div>
-              <label
-                htmlFor="duration_days"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Duración (días)
-              </label>
+            <FormField label="Duración (días)" required>
               <input
                 type="number"
-                id="duration_days"
                 min="1"
                 value={formData.duration_days}
                 onChange={(e) =>
                   handleInputChange("duration_days", e.target.value)
                 }
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
               />
-            </div>
+            </FormField>
 
-            {/* Tamaño del Grupo */}
-            <div>
-              <label
-                htmlFor="group_size"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Tamaño Máximo del Grupo
-              </label>
-              <input
-                type="number"
-                id="group_size"
-                min="1"
-                value={formData.group_size}
-                onChange={(e) =>
-                  handleInputChange("group_size", e.target.value)
-                }
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-              />
-            </div>
-
-            {/* Entorno/Ambiente */}
-            <div>
-              <label
-                htmlFor="environment"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Entorno/Ambiente
-              </label>
+            <FormField label="Entorno/Ambiente">
               <select
-                id="environment"
                 value={formData.environment}
                 onChange={(e) =>
                   handleInputChange("environment", e.target.value)
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
               >
                 {ENVIRONMENT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -666,122 +645,203 @@ function CreatePackagePage() {
                   </option>
                 ))}
               </select>
-            </div>
+            </FormField>
           </div>
 
-          {/* Descripción Larga */}
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Descripción Larga
-            </label>
+          <FormField label="Descripción Larga" required>
             <textarea
-              id="description"
               rows="4"
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="Describe la experiencia completa del tour..."
             />
-          </div>
-        </fieldset>
+          </FormField>
+        </FormSection>
 
-        {/* Punto y Hora de Encuentro */}
-        <fieldset className="space-y-4">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Punto y Hora de Encuentro
-          </legend>
+        {/* Disponibilidad del Tour */}
+        <FormSection
+          title="📅 Disponibilidad del Tour"
+          className="border-orange-200 bg-orange-50"
+        >
+          <div className="bg-white p-4 rounded-lg mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Tipo de Disponibilidad *
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {AVAILABILITY_TYPES.map((type) => (
+                <div
+                  key={type.value}
+                  onClick={() =>
+                    handleInputChange("availability_type", type.value)
+                  }
+                  className={`cursor-pointer p-4 border-2 rounded-lg transition-all ${
+                    formData.availability_type === type.value
+                      ? "border-orange-500 bg-orange-100 shadow-md"
+                      : "border-gray-300 hover:border-orange-300"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      checked={formData.availability_type === type.value}
+                      onChange={() => {}}
+                      className="mt-1"
+                    />
+                    <div>
+                      <h3 className="font-semibold text-gray-800">
+                        {type.label}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {type.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Campos condicionales para fechas abiertas */}
+          {formData.availability_type === "OPEN_DATES" && (
+            <div className="bg-white p-4 rounded-lg space-y-4">
+              <h3 className="font-semibold text-gray-700 mb-3">
+                🗓️ Rango de Fechas Disponibles
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField label="Disponible Desde" required>
+                  <input
+                    type="date"
+                    value={formData.available_from}
+                    onChange={(e) =>
+                      handleInputChange("available_from", e.target.value)
+                    }
+                    min={new Date().toISOString().split("T")[0]}
+                  />
+                </FormField>
+                <FormField label="Disponible Hasta" required>
+                  <input
+                    type="date"
+                    value={formData.available_until}
+                    onChange={(e) =>
+                      handleInputChange("available_until", e.target.value)
+                    }
+                    min={
+                      formData.available_from ||
+                      new Date().toISOString().split("T")[0]
+                    }
+                  />
+                </FormField>
+              </div>
+              <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
+                ℹ️ Los clientes podrán reservar para cualquier fecha dentro de
+                este rango
+              </p>
+            </div>
+          )}
+
+          {/* Campos condicionales para fecha específica */}
+          {formData.availability_type === "SPECIFIC_DATE" && (
+            <div className="bg-white p-4 rounded-lg space-y-4">
+              <h3 className="font-semibold text-gray-700 mb-3">
+                🎯 Fecha y Hora de Salida
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField label="Fecha de Salida" required>
+                  <input
+                    type="date"
+                    value={formData.departure_date}
+                    onChange={(e) =>
+                      handleInputChange("departure_date", e.target.value)
+                    }
+                    min={new Date().toISOString().split("T")[0]}
+                  />
+                </FormField>
+                <FormField label="Hora de Salida">
+                  <input
+                    type="time"
+                    value={formData.departure_time}
+                    onChange={(e) =>
+                      handleInputChange("departure_time", e.target.value)
+                    }
+                  />
+                </FormField>
+              </div>
+              <p className="text-sm text-gray-600 bg-yellow-50 p-3 rounded">
+                ⚠️ Esta será la única fecha disponible para este tour
+              </p>
+            </div>
+          )}
+
+          <FormField label="👥 Capacidad Máxima" required>
+            <input
+              type="number"
+              min="1"
+              value={formData.max_capacity}
+              onChange={(e) =>
+                handleInputChange("max_capacity", e.target.value)
+              }
+              placeholder="10"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Número máximo de personas que pueden reservar
+            </p>
+          </FormField>
+        </FormSection>
+
+        {/* Punto de Encuentro */}
+        <FormSection title="📍 Punto de Encuentro">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label
-                htmlFor="meeting_point"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Punto de Encuentro
-              </label>
+            <FormField label="Lugar de Encuentro">
               <input
                 type="text"
-                id="meeting_point"
                 value={formData.meeting_point}
                 onChange={(e) =>
                   handleInputChange("meeting_point", e.target.value)
                 }
-                placeholder="Ej: Aeropuerto Internacional de Maiquetía"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="Ej: Terminal La Bandera"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="meeting_time"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Hora de Encuentro
-              </label>
+            </FormField>
+            <FormField label="Hora de Encuentro">
               <input
                 type="time"
-                id="meeting_time"
                 value={formData.meeting_time}
                 onChange={(e) =>
                   handleInputChange("meeting_time", e.target.value)
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
               />
-            </div>
+            </FormField>
           </div>
-        </fieldset>
-        {/* Puntos Destacados */}
-        <fieldset className="space-y-4">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Puntos Destacados
-          </legend>
+        </FormSection>
+
+        {/* Resto de las secciones (Puntos Destacados, Precios Variables, Itinerario, Imágenes, etc.) */}
+        {/* ... mantén el mismo código para estas secciones, pero usando los nuevos hooks ... */}
+
+        {/* Sección de Puntos Destacados */}
+        <FormSection title="⭐ Puntos Destacados">
           <p className="text-sm text-gray-600 mb-4">
-            Lista los aspectos más atractivos de tu tour que quieres resaltar.
+            Lista los aspectos más atractivos de tu tour
           </p>
-
           {highlights.map((highlight, index) => (
-            <div
+            <DynamicField
               key={index}
-              className="flex gap-4 items-start border rounded-lg p-4 bg-green-50"
-            >
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Punto destacado {index + 1}
-                </label>
-                <input
-                  type="text"
-                  value={highlight}
-                  onChange={(e) => updateHighlight(index, e.target.value)}
-                  placeholder="Ej: Playa privada, Buffet incluido, Guía bilingüe..."
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                />
-              </div>
-              {highlights.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeHighlight(index)}
-                  className="mt-6 text-red-500 hover:text-red-700 p-2"
-                >
-                  <XIcon className="w-5 h-5" />
-                </button>
-              )}
-            </div>
+              index={index}
+              value={highlight}
+              onChange={(value) => updateSimpleHighlight(index, value)}
+              onRemove={() => removeHighlight(index)}
+              placeholder="Ej: Playa privada, Buffet incluido, Guía bilingüe..."
+              showRemove={highlights.length > 1}
+              label={`Punto destacado ${index + 1}`}
+              ref={index === highlights.length - 1 ? lastHighlightRef : null}
+            />
           ))}
-          <button
-            type="button"
-            onClick={addHighlight}
-            className="w-full py-2 border-2 border-dashed border-green-300 text-green-500 hover:bg-green-50 rounded-lg font-semibold"
-          >
+          <AddButton onClick={() => addHighlight("")}>
             + Añadir punto destacado
-          </button>
-        </fieldset>
+          </AddButton>
+        </FormSection>
 
-        {/* Precios Variables - PARA EXTRAS */}
-        <fieldset className="space-y-4">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Precios Variables y Extras
-          </legend>
+        {/* Sección de Precios Variables */}
+        <FormSection title="💰 Precios Variables y Extras">
           {variablePrices.map((price, index) => (
             <div
               key={index}
@@ -796,14 +856,9 @@ function CreatePackagePage() {
                 type="text"
                 value={price.type}
                 onChange={(e) =>
-                  handleDynamicListChange(
-                    setVariablePrices,
-                    index,
-                    e.target.value,
-                    "type"
-                  )
+                  updateVariablePrice(index, "type", e.target.value)
                 }
-                placeholder="Ej: Niños, Adulto Mayor, Extra..."
+                placeholder="Ej: Niños, Adulto Mayor..."
                 className="w-1/2 rounded-md border-gray-300"
               />
               <input
@@ -811,48 +866,28 @@ function CreatePackagePage() {
                 step="0.01"
                 value={price.price}
                 onChange={(e) =>
-                  handleDynamicListChange(
-                    setVariablePrices,
-                    index,
-                    e.target.value,
-                    "price"
-                  )
+                  updateVariablePrice(index, "price", e.target.value)
                 }
                 onKeyDown={(e) =>
                   handleKeyDown(e, () =>
-                    addDynamicItem(setVariablePrices, { type: "", price: "" })
+                    addVariablePrice({ type: "", price: "" })
                   )
                 }
-                placeholder="Precio Adicional (USD)"
+                placeholder="Precio (USD)"
                 className="w-1/2 rounded-md border-gray-300"
               />
               {variablePrices.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeDynamicItem(setVariablePrices, index)}
-                  className="text-red-500 hover:text-red-700 p-2"
-                >
-                  <XIcon className="w-5 h-5" />
-                </button>
+                <RemoveButton onClick={() => removeVariablePrice(index)} />
               )}
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() =>
-              addDynamicItem(setVariablePrices, { type: "", price: "" })
-            }
-            className="w-full py-2 border-2 border-dashed border-purple-300 text-purple-500 hover:bg-purple-50 rounded-lg font-semibold"
-          >
+          <AddButton onClick={() => addVariablePrice({ type: "", price: "" })}>
             + Añadir precio variable
-          </button>
-        </fieldset>
+          </AddButton>
+        </FormSection>
 
-        {/* Itinerario */}
-        <fieldset className="space-y-4">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Itinerario Detallado
-          </legend>
+        {/* Sección de Itinerario */}
+        <FormSection title="🗓️ Itinerario Detallado">
           {itinerary.map((day, index) => (
             <div key={index} className="flex gap-4 items-start">
               <span className="font-bold mt-2">Día {index + 1}:</span>
@@ -860,19 +895,11 @@ function CreatePackagePage() {
                 ref={index === itinerary.length - 1 ? lastItineraryRef : null}
                 value={day.description}
                 onChange={(e) =>
-                  handleDynamicListChange(
-                    setItinerary,
-                    index,
-                    e.target.value,
-                    "description"
-                  )
+                  updateItinerary(index, "description", e.target.value)
                 }
                 onKeyDown={(e) =>
                   handleKeyDown(e, () =>
-                    addDynamicItem(setItinerary, {
-                      day: itinerary.length + 1,
-                      description: "",
-                    })
+                    addItinerary({ day: itinerary.length + 1, description: "" })
                   )
                 }
                 placeholder={`Describe las actividades del día ${index + 1}`}
@@ -880,279 +907,130 @@ function CreatePackagePage() {
                 rows="3"
               />
               {itinerary.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeDynamicItem(setItinerary, index)}
-                  className="mt-2 text-red-500 hover:text-red-700 p-2"
-                >
-                  <XIcon className="w-5 h-5" />
-                </button>
+                <RemoveButton onClick={() => removeItinerary(index)} />
               )}
             </div>
           ))}
-          <button
-            type="button"
+          <AddButton
             onClick={() =>
-              addDynamicItem(setItinerary, {
-                day: itinerary.length + 1,
-                description: "",
-              })
+              addItinerary({ day: itinerary.length + 1, description: "" })
             }
-            className="w-full py-2 border-2 border-dashed border-orange-300 text-orange-500 hover:bg-orange-50 rounded-lg font-semibold"
           >
             + Añadir día al itinerario
-          </button>
-        </fieldset>
+          </AddButton>
+        </FormSection>
 
-        {/* Sección de Imágenes */}
-        <fieldset className="space-y-6">
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Imágenes
-          </legend>
-          {/* Main Image */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Imagen Principal
-            </label>
-            <div className="mt-2 flex items-center gap-4">
-              {mainImagePreview ? (
-                <img
-                  src={mainImagePreview}
-                  alt="Vista previa"
-                  className="h-24 w-24 object-cover rounded-lg"
-                />
-              ) : (
-                <div className="h-24 w-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                  <UploadIcon className="w-8 h-8" />
-                </div>
-              )}
+        {/* Sección de Imágenes (mantener igual) */}
+        <FormSection title="🖼️ Imágenes">
+          <ImageUpload
+            mainImage={mainImage}
+            mainImagePreview={mainImagePreview}
+            onMainImageChange={handleMainImageChange}
+            galleryImages={galleryImages}
+            galleryImagePreviews={galleryImagePreviews}
+            onGalleryImagesChange={handleGalleryImagesChange}
+            onRemoveGalleryImage={removeGalleryImage}
+          />
+        </FormSection>
+
+        {/* Secciones de Tags e Includes (mantener estructura similar) */}
+        <FormSection title="🏷️ Etiquetas">
+          <CheckboxGrid
+            items={tags}
+            selectedItems={selectedTags}
+            onSelectionChange={(id) =>
+              handleSelectionChange(setSelectedTags, id)
+            }
+            colorClass={{ selected: "bg-green-100 text-green-500" }}
+          />
+        </FormSection>
+
+        <FormSection title="✅ ¿Qué Incluye el Paquete?">
+          {availableIncludes.length > 0 ? (
+            <CheckboxGrid
+              items={availableIncludes}
+              selectedItems={selectedIncludes}
+              onSelectionChange={(id) =>
+                handleSelectionChange(setSelectedIncludes, id)
+              }
+              colorClass={{ selected: "bg-orange-100 text-orange-500" }}
+            />
+          ) : (
+            <p className="text-sm text-gray-500 italic">Cargando opciones...</p>
+          )}
+        </FormSection>
+
+        <FormSection title="❌ ¿Qué NO Incluye el Paquete?">
+          {availableIncludes.length > 0 ? (
+            <CheckboxGrid
+              items={availableIncludes}
+              selectedItems={whatIsNotIncluded}
+              onSelectionChange={(id) =>
+                handleSelectionChange(setWhatIsNotIncluded, id)
+              }
+              colorClass={{ selected: "bg-red-100 text-red-500" }}
+            />
+          ) : (
+            <p className="text-sm text-gray-500 italic">Cargando opciones...</p>
+          )}
+        </FormSection>
+
+        {/* Sección de Configuración Avanzada (puedes hacerla colapsable) */}
+        <FormSection
+          title="⚙️ Configuración Avanzada"
+          className="border-gray-200 bg-gray-50"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Estado del Paquete">
+              <select
+                value={formData.status}
+                onChange={(e) => handleInputChange("status", e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border"
+              >
+                <option value="DRAFT">Borrador</option>
+                <option value="PUBLISHED">Publicado</option>
+              </select>
+            </FormField>
+
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="flex items-center">
               <input
-                type="file"
-                id="main_image"
-                onChange={handleMainImageChange}
-                className="hidden"
+                type="checkbox"
+                id="is_active"
+                checked={formData.is_active}
+                onChange={(e) =>
+                  handleInputChange("is_active", e.target.checked)
+                }
+                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+              />
+              <label htmlFor="is_active" className="ml-2 text-sm text-gray-700">
+                Paquete Activo
+              </label>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="is_recurring"
+                checked={formData.is_recurring}
+                onChange={(e) =>
+                  handleInputChange("is_recurring", e.target.checked)
+                }
+                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
               />
               <label
-                htmlFor="main_image"
-                className="cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                htmlFor="is_recurring"
+                className="ml-2 text-sm text-gray-700"
               >
-                {mainImage ? "Cambiar" : "Seleccionar"}
+                Es Recurrente
               </label>
             </div>
           </div>
+        </FormSection>
 
-          {/* Gallery Images */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Imágenes de Galería
-            </label>
-            <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-              {galleryImagePreviews.map((preview, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={preview}
-                    alt={`Galería ${index + 1}`}
-                    className="h-24 w-full object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => removeGalleryImage(index)}
-                    type="button"
-                    className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white rounded-full p-1 leading-none"
-                  >
-                    <XIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <label
-                htmlFor="gallery_images"
-                className="cursor-pointer h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-orange-500 hover:text-orange-500"
-              >
-                <UploadIcon className="w-8 h-8" />
-                <span className="text-xs mt-1">Añadir</span>
-                <input
-                  type="file"
-                  id="gallery_images"
-                  multiple
-                  onChange={handleGalleryImagesChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-        </fieldset>
-
-        {/* Etiquetas */}
-        <fieldset>
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            Etiquetas
-          </legend>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
-            {tags.map((tag) => {
-              const isSelected = selectedTags.includes(tag.id);
-              return (
-                <div
-                  key={tag.id}
-                  className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
-                    isSelected
-                      ? "bg-green-100 border-green-500 shadow-md"
-                      : "bg-white border-gray-200 hover:border-green-300 hover:bg-green-50"
-                  }`}
-                  onClick={() => handleTagChange(tag.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {tag.name}
-                    </span>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        isSelected
-                          ? "bg-green-500 border-green-500"
-                          : "bg-white border-gray-300"
-                      }`}
-                    >
-                      {isSelected && (
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="3"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        {/* Qué Incluye */}
-        <fieldset>
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            ¿Qué Incluye el Paquete?
-          </legend>
-          {availableIncludes && availableIncludes.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
-              {availableIncludes.map((item) => {
-                const isSelected = selectedIncludes.includes(item.id);
-                return (
-                  <div
-                    key={item.id}
-                    className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
-                      isSelected
-                        ? "bg-orange-100 border-orange-500 shadow-md"
-                        : "bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50"
-                    }`}
-                    onClick={() => handleIncludeChange(item.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">
-                        {item.name}
-                      </span>
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected
-                            ? "bg-orange-500 border-orange-500"
-                            : "bg-white border-gray-300"
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg
-                            className="w-3 h-3 text-white"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="3"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 italic">
-              {availableIncludes === null
-                ? "Cargando opciones..."
-                : "No hay opciones disponibles"}
-            </p>
-          )}
-        </fieldset>
-
-        {/* Qué NO Incluye */}
-        <fieldset>
-          <legend className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
-            ¿Qué NO Incluye el Paquete?
-          </legend>
-          {availableIncludes && availableIncludes.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
-              {availableIncludes.map((item) => {
-                const isSelected = whatIsNotIncluded.includes(item.id);
-                return (
-                  <div
-                    key={item.id}
-                    className={`cursor-pointer rounded-lg p-3 border-2 transition-all duration-200 transform hover:scale-105 ${
-                      isSelected
-                        ? "bg-red-100 border-red-500 shadow-md"
-                        : "bg-white border-gray-200 hover:border-red-300 hover:bg-red-50"
-                    }`}
-                    onClick={() => handleNotIncludeChange(item.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">
-                        {item.name}
-                      </span>
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected
-                            ? "bg-red-500 border-red-500"
-                            : "bg-white border-gray-300"
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg
-                            className="w-3 h-3 text-white"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="3"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 italic">
-              {availableIncludes === null
-                ? "Cargando opciones..."
-                : "No hay opciones disponibles"}
-            </p>
-          )}
-        </fieldset>
-
+        {/* Mensajes de error y botones de envío */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 font-medium">
             {error}
@@ -1177,9 +1055,162 @@ function CreatePackagePage() {
           </button>
         </div>
       </form>
+
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }
+
+// Componentes auxiliares para mejorar la legibilidad
+const FormSection = ({ title, children, className = "" }) => (
+  <fieldset
+    className={`space-y-4 border-2 border-gray-200 p-6 rounded-lg ${className}`}
+  >
+    <legend className="text-xl font-semibold text-gray-700 px-2">
+      {title}
+    </legend>
+    {children}
+  </fieldset>
+);
+
+const FormField = ({ label, required = false, children, ...props }) => (
+  <div {...props}>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label} {required && "*"}
+    </label>
+    {React.Children.map(children, (child) =>
+      React.cloneElement(child, {
+        className: `w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border ${
+          child.props.className || ""
+        }`,
+      })
+    )}
+  </div>
+);
+
+const DynamicField = React.forwardRef(
+  (
+    { index, value, onChange, onRemove, placeholder, showRemove, label },
+    ref
+  ) => (
+    <div className="flex gap-4 items-start border rounded-lg p-4 bg-green-50">
+      <div className="flex-1">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label}
+        </label>
+        <input
+          ref={ref}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+        />
+      </div>
+      {showRemove && <RemoveButton onClick={onRemove} />}
+    </div>
+  )
+);
+
+const RemoveButton = ({ onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="mt-6 text-red-500 hover:text-red-700 p-2"
+  >
+    <XIcon className="w-5 h-5" />
+  </button>
+);
+
+const AddButton = ({ onClick, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="w-full py-2 border-2 border-dashed border-green-300 text-green-500 hover:bg-green-50 rounded-lg font-semibold"
+  >
+    {children}
+  </button>
+);
+
+const ImageUpload = ({
+  mainImage,
+  mainImagePreview,
+  onMainImageChange,
+  galleryImages,
+  galleryImagePreviews,
+  onGalleryImagesChange,
+  onRemoveGalleryImage,
+}) => (
+  <>
+    <div>
+      <label className="block text-sm font-medium text-gray-700">
+        Imagen Principal
+      </label>
+      <div className="mt-2 flex items-center gap-4">
+        {mainImagePreview ? (
+          <img
+            src={mainImagePreview}
+            alt="Vista previa"
+            className="h-24 w-24 object-cover rounded-lg"
+          />
+        ) : (
+          <div className="h-24 w-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+            <UploadIcon className="w-8 h-8" />
+          </div>
+        )}
+        <input
+          type="file"
+          id="main_image"
+          onChange={onMainImageChange}
+          className="hidden"
+        />
+        <label
+          htmlFor="main_image"
+          className="cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          {mainImage ? "Cambiar" : "Seleccionar"}
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700">
+        Imágenes de Galería
+      </label>
+      <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+        {galleryImagePreviews.map((preview, index) => (
+          <div key={index} className="relative">
+            <img
+              src={preview}
+              alt={`Galería ${index + 1}`}
+              className="h-24 w-full object-cover rounded-lg"
+            />
+            <button
+              onClick={() => onRemoveGalleryImage(index)}
+              type="button"
+              className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white rounded-full p-1 leading-none"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+        <label
+          htmlFor="gallery_images"
+          className="cursor-pointer h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-orange-500 hover:text-orange-500"
+        >
+          <UploadIcon className="w-8 h-8" />
+          <span className="text-xs mt-1">Añadir</span>
+          <input
+            type="file"
+            id="gallery_images"
+            multiple
+            onChange={onGalleryImagesChange}
+            className="hidden"
+          />
+        </label>
+      </div>
+    </div>
+  </>
+);
 
 export default CreatePackagePage;
