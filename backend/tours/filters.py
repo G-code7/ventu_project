@@ -19,6 +19,13 @@ class TourPackageFilter(django_filters.FilterSet):
     duration_days = django_filters.NumberFilter(field_name='duration_days')
     duration_days__gte = django_filters.NumberFilter(field_name='duration_days', lookup_expr='gte')
     duration_days__lte = django_filters.NumberFilter(field_name='duration_days', lookup_expr='lte')
+    
+    # Filtro por servicios adicionales
+    has_extra_services = django_filters.BooleanFilter(
+        field_name='extra_services', 
+        lookup_expr='isnull', 
+        exclude=True
+    )
 
     class Meta:
         model = TourPackage
@@ -26,4 +33,6 @@ class TourPackageFilter(django_filters.FilterSet):
             'operator': ['exact'],
             'is_active': ['exact'],
             'is_recurring': ['exact'],
+            'environment': ['exact'],
+            'availability_type': ['exact'],
         }

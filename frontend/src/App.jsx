@@ -12,7 +12,8 @@ import EditPackagePage from "./modules/Dashboard/editPackagePage";
 import TourDetailPage from "./modules/Tours/tourDetailPage";
 import AuthLoader from "./modules/Auth/authLoader";
 import { lazy, Suspense } from 'react';
-
+import CheckoutPage from './modules/Bookings/checkoutPage';
+import MyTripsPage from './modules/Bookings/myTripsPage';
 
 
 function AppContent() {
@@ -22,6 +23,11 @@ function AppContent() {
     <Routes>
       <Route element={<PageLayout />}>
         <Route path="/" element={<HomePage />} />
+        
+        {/* Rutas públicas */}
+        <Route path="/tour/:tourId" element={<TourDetailPage />} />
+        
+        {/* Rutas protegidas */}
         <Route element={<ProtectedRoute />}>
           <Route path="me" element={<ProfilePage />} />
           <Route
@@ -32,8 +38,22 @@ function AppContent() {
             path="operator/edit-package/:packageId"
             element={<EditPackagePage />}
           />
+          
+          {/* NUEVAS RUTAS DE BOOKING */}
+          <Route
+            path="/checkout"
+            element={
+              <CheckoutPage />
+            }
+          />
+          
+          <Route
+            path="/my-trips"
+            element={
+              <MyTripsPage />
+            }
+          />
         </Route>
-        <Route path="/tour/:tourId" element={<TourDetailPage />} />
       </Route>
     </Routes>
   );

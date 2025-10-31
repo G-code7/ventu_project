@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { axiosInstance } from "../Auth/authContext";
+import { axiosInstance, useAuth } from "../Auth/authContext"; // Agregar useAuth
 import {
   HeartIcon,
   ShareIcon,
@@ -18,6 +18,7 @@ import { useTourImages } from "../../hooks/useTourImages";
 function TourDetailPage() {
   const { tourId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth(); // Agregar useAuth
 
   // Estados principales
   const [tour, setTour] = useState(null);
@@ -32,11 +33,22 @@ function TourDetailPage() {
     return tomorrow.toISOString().split("T")[0];
   });
 
-  const [tickets, setTickets] = useState({
-    adults: 1,
-    seniors: 0,
-    children: 0,
+  // tickets
+  const [tickets, setTickets] = useState(() => {
+    return { adults: 1, seniors: 0, children: 0 };
   });
+
+  // price_variations
+  useEffect(() => {
+    if (tour?.price_variations) {
+      const initialTickets = {};
+      Object.keys(tour.price_variations).forEach((type, index) => {
+        // El primer tipo se inicializa en 1, los demás en 0
+        initialTickets[type] = index === 0 ? 1 : 0;
+      });
+      setTickets(initialTickets);
+    }
+  }, [tour]);
 
   const [extras, setExtras] = useState({
     meals: false,
@@ -63,13 +75,22 @@ function TourDetailPage() {
 
         if (response.data?.id) {
           setTour(response.data);
-          // Inicializar variableExtras
-          if (response.data.variable_prices) {
+          // Inicializar servicios adicionales si existen
+          if (response.data.extra_services) {
             const initialExtras = {};
-            Object.keys(response.data.variable_prices).forEach((key) => {
+            Object.keys(response.data.extra_services).forEach((key) => {
               initialExtras[key] = false;
             });
             setVariableExtras(initialExtras);
+          }
+          
+          // Inicializar tickets basado en price_variations si existen
+          if (response.data.price_variations) {
+            const initialTickets = {};
+            Object.keys(response.data.price_variations).forEach((type, index) => {
+              initialTickets[type] = index === 0 ? 1 : 0; // Primer tipo en 1, otros en 0
+            });
+            setTickets(initialTickets);
           }
         } else {
           throw new Error("Datos del tour inválidos");
@@ -110,35 +131,71 @@ function TourDetailPage() {
     }));
   }, []);
 
-  const handleReservation = useCallback(async () => {
-    if (!selectedDate) {
-      alert("Por favor selecciona una fecha");
+  const handleReservation = useCallback(() => {
+    if (!user) {
+      alert('Debes iniciar sesión para hacer una reserva');
+      return;
+    }
+    if (user.role !== 'TRAVELER') {
+      alert('Solo los viajeros pueden hacer reservas. Los operadores no pueden reservar sus propios tours.');
       return;
     }
 
-    const totalTickets = tickets.adults + tickets.seniors + tickets.children;
-    if (totalTickets === 0) {
-      alert("Por favor selecciona al menos un ticket");
+    const totalPeople = Object.values(tickets).reduce((sum, num) => sum + (parseInt(num) || 0), 0);
+    
+    if (totalPeople === 0) {
+      alert('Por favor selecciona al menos una persona para la reserva');
       return;
     }
 
-    setReserving(true);
-    try {
-      console.log("Procesando reserva...", {
-        tourId,
-        selectedDate,
-        tickets,
-        extras,
-        variableExtras,
+    if (tour.available_slots < totalPeople) {
+      alert(`Solo hay ${tour.available_slots} plazas disponibles`);
+      return;
+    }
+
+    let total = 0;
+
+    const availableTicketTypes = tour?.price_variations_with_commission 
+      ? Object.keys(tour.price_variations_with_commission) 
+      : [];
+
+    if (availableTicketTypes.length > 0) {
+      Object.entries(tickets).forEach(([type, quantity]) => {
+        const qty = parseInt(quantity) || 0;
+        if (qty > 0 && tour.price_variations_with_commission[type]) {
+          const priceWithCommission = parseFloat(tour.price_variations_with_commission[type]);
+          total += qty * priceWithCommission;
+        }
       });
-      // navigate('/checkout');
-    } catch (err) {
-      console.error("Error en reserva:", err);
-      alert("Error al procesar la reserva");
-    } finally {
-      setReserving(false);
+    } else if (tour?.final_price) {
+      const finalPrice = parseFloat(tour.final_price);
+      total += totalPeople * finalPrice;
     }
-  }, [selectedDate, tickets, extras, variableExtras, tourId]);
+
+    // Calcular extras
+    if (tour?.extra_services_with_commission) {
+      Object.entries(tour.extra_services_with_commission).forEach(([key, priceWithCommission]) => {
+        if (variableExtras[key]) {
+          total += parseFloat(priceWithCommission) * totalPeople;
+        }
+      });
+    }
+
+    // 5. PREPARAR DATOS PARA EL CHECKOUT
+    const bookingData = {
+      tour,
+      selectedDate,
+      tickets,
+      variableExtras,
+      total,
+      totalPeople
+    };
+
+    // 6. NAVEGAR AL CHECKOUT
+    navigate('/checkout', {
+      state: { bookingData }
+    });
+  }, [user, tour, selectedDate, tickets, variableExtras, navigate]);
 
   // Handlers de galería
   const openGalleryModal = useCallback((index = 0) => {
@@ -298,7 +355,7 @@ function TourDetailPage() {
             <TourItinerary tour={tour} />
           </div>
 
-          {/* Widget de reserva */}
+          {/* Widget de reserva - Pasar user como prop adicional si es necesario */}
           <BookingWidget
             tour={tour}
             selectedDate={selectedDate}
@@ -312,6 +369,7 @@ function TourDetailPage() {
             onReservation={handleReservation}
             reserving={reserving}
             pricing={pricing}
+            user={user} // Pasar user al BookingWidget si lo necesita
           />
         </div>
       </div>

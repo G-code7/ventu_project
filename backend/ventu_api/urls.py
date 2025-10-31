@@ -24,6 +24,7 @@ urlpatterns = [
     # Rutas de tus apps
     path('api/users/', include('users.urls')),
     path('api/', include('tours.urls')),
+    path('api/', include('bookings.urls')),
 
     # JWT endpoints
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),

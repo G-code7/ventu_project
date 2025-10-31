@@ -49,7 +49,7 @@ const ENVIRONMENT_OPTIONS = [
   { value: "HISTORICAL", label: "🏺 Histórico/Arqueológico" },
   { value: "GASTRONOMIC", label: "🍷 Gourmet/Gastronómico" },
   { value: "URBAN", label: "🏙️ Urbano/Ciudad" },
-]
+];
 
 const AVAILABILITY_TYPES = [
   {
@@ -107,7 +107,7 @@ function CreatePackagePage() {
     description: "",
     state_origin: "Distrito Capital",
     specific_origin: "",
-    state_destination: "Miranda", 
+    state_destination: "Miranda",
     specific_destination: "",
     base_price: "",
     duration_days: 1,
@@ -156,11 +156,18 @@ function CreatePackagePage() {
   } = useDynamicList([{ day: 1, description: "" }]);
 
   const {
-    items: variablePrices,
-    addItem: addVariablePrice,
-    updateItem: updateVariablePrice,
-    removeItem: removeVariablePrice,
+    items: priceVariations,
+    addItem: addPriceVariation,
+    updateItem: updatePriceVariation,
+    removeItem: removePriceVariation,
   } = useDynamicList([{ type: "", price: "" }]);
+
+  const {
+    items: extraServices,
+    addItem: addExtraService,
+    updateItem: updateExtraService,
+    removeItem: removeExtraService,
+  } = useDynamicList([{ service: "", price: "" }]);
 
   // Estados para archivos
   const [mainImage, setMainImage] = useState(null);
@@ -171,9 +178,11 @@ function CreatePackagePage() {
   // Referencias para autofoco
   const lastHighlightRef = useRef(null);
   const lastItineraryRef = useRef(null);
-  const lastVariablePriceRef = useRef(null);
+  const lastPriceVariationRef = useRef(null);
+  const lastExtraServiceRef = useRef(null);
 
   // Cargar datos iniciales optimizado
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -205,8 +214,12 @@ function CreatePackagePage() {
   }, [itinerary.length]);
 
   useEffect(() => {
-    lastVariablePriceRef.current?.focus();
-  }, [variablePrices.length]);
+    lastPriceVariationRef.current?.focus();
+  }, [priceVariations.length]);
+
+  useEffect(() => {
+    lastExtraServiceRef.current?.focus();
+  }, [extraServices.length]);
 
   // Manejo de inputs del formulario
   const handleInputChange = useCallback((field, value) => {
@@ -343,14 +356,26 @@ function CreatePackagePage() {
       submitData.append("itinerary", JSON.stringify(itineraryObj));
     }
 
-    const pricesObj = {};
-    variablePrices.forEach((item) => {
+    // PRECIOS VARIABLES
+    const priceVariationsObj = {};
+    priceVariations.forEach((item) => {
       if (item.type && item.price) {
-        pricesObj[item.type] = parseFloat(item.price);
+        priceVariationsObj[item.type] = parseFloat(item.price);
       }
     });
-    if (Object.keys(pricesObj).length > 0) {
-      submitData.append("variable_prices", JSON.stringify(pricesObj));
+    if (Object.keys(priceVariationsObj).length > 0) {
+      submitData.append("price_variations", JSON.stringify(priceVariationsObj));
+    }
+
+    // SERVICIOS ADICIONALES
+    const extraServicesObj = {};
+    extraServices.forEach((item) => {
+      if (item.service && item.price) {
+        extraServicesObj[item.service] = parseFloat(item.price);
+      }
+    });
+    if (Object.keys(extraServicesObj).length > 0) {
+      submitData.append("extra_services", JSON.stringify(extraServicesObj));
     }
 
     const highlightsArray = highlights.filter(
@@ -379,7 +404,8 @@ function CreatePackagePage() {
   }, [
     formData,
     itinerary,
-    variablePrices,
+    priceVariations,
+    extraServices,
     highlights,
     selectedTags,
     selectedIncludes,
@@ -541,7 +567,6 @@ function CreatePackagePage() {
         onSubmit={handleSubmit}
         className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8"
       >
-
         {/* Información Básica */}
         <FormSection title="📋 Información Básica">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -814,9 +839,6 @@ function CreatePackagePage() {
           </div>
         </FormSection>
 
-        {/* Resto de las secciones (Puntos Destacados, Precios Variables, Itinerario, Imágenes, etc.) */}
-        {/* ... mantén el mismo código para estas secciones, pero usando los nuevos hooks ... */}
-
         {/* Sección de Puntos Destacados */}
         <FormSection title="⭐ Puntos Destacados">
           <p className="text-sm text-gray-600 mb-4">
@@ -840,49 +862,105 @@ function CreatePackagePage() {
           </AddButton>
         </FormSection>
 
-        {/* Sección de Precios Variables */}
-        <FormSection title="💰 Precios Variables y Extras">
-          {variablePrices.map((price, index) => (
+        {/* Sección de Variaciones de Precio (Tipos de Participantes) */}
+        <FormSection title="💰 Variaciones de Precio">
+          <p className="text-sm text-gray-600 mb-4">
+            Define diferentes precios por tipo de participante (ej: adulto,
+            niño, tercera edad)
+          </p>
+          {priceVariations.map((variation, index) => (
             <div
               key={index}
-              className="flex gap-4 items-center p-4 bg-gray-50 rounded-lg"
+              className="flex gap-4 items-center p-4 bg-blue-50 rounded-lg"
             >
               <input
                 ref={
-                  index === variablePrices.length - 1
-                    ? lastVariablePriceRef
+                  index === priceVariations.length - 1
+                    ? lastPriceVariationRef
                     : null
                 }
                 type="text"
-                value={price.type}
+                value={variation.type}
                 onChange={(e) =>
-                  updateVariablePrice(index, "type", e.target.value)
+                  updatePriceVariation(index, "type", e.target.value)
                 }
-                placeholder="Ej: Niños, Adulto Mayor..."
+                placeholder="Ej: adulto, niño, tercera_edad..."
                 className="w-1/2 rounded-md border-gray-300"
               />
               <input
                 type="number"
                 step="0.01"
-                value={price.price}
+                value={variation.price}
                 onChange={(e) =>
-                  updateVariablePrice(index, "price", e.target.value)
+                  updatePriceVariation(index, "price", e.target.value)
                 }
                 onKeyDown={(e) =>
                   handleKeyDown(e, () =>
-                    addVariablePrice({ type: "", price: "" })
+                    addPriceVariation({ type: "", price: "" })
                   )
                 }
                 placeholder="Precio (USD)"
                 className="w-1/2 rounded-md border-gray-300"
               />
-              {variablePrices.length > 1 && (
-                <RemoveButton onClick={() => removeVariablePrice(index)} />
+              {priceVariations.length > 1 && (
+                <RemoveButton onClick={() => removePriceVariation(index)} />
               )}
             </div>
           ))}
-          <AddButton onClick={() => addVariablePrice({ type: "", price: "" })}>
-            + Añadir precio variable
+          <AddButton onClick={() => addPriceVariation({ type: "", price: "" })}>
+            + Añadir tipo de participante
+          </AddButton>
+        </FormSection>
+
+        {/* Sección de Servicios Adicionales */}
+        <FormSection title="🛎️ Servicios Adicionales">
+          <p className="text-sm text-gray-600 mb-4">
+            Define servicios opcionales que los clientes pueden agregar (ej:
+            comidas, seguro, fotos)
+          </p>
+          {extraServices.map((service, index) => (
+            <div
+              key={index}
+              className="flex gap-4 items-center p-4 bg-green-50 rounded-lg"
+            >
+              <input
+                ref={
+                  index === extraServices.length - 1
+                    ? lastExtraServiceRef
+                    : null
+                }
+                type="text"
+                value={service.service}
+                onChange={(e) =>
+                  updateExtraService(index, "service", e.target.value)
+                }
+                placeholder="Ej: comidas, seguro_viaje, fotos_profesionales..."
+                className="w-1/2 rounded-md border-gray-300"
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={service.price}
+                onChange={(e) =>
+                  updateExtraService(index, "price", e.target.value)
+                }
+                onKeyDown={(e) =>
+                  handleKeyDown(e, () =>
+                    addExtraService({ service: "", price: "" })
+                  )
+                }
+                placeholder="Precio por persona (USD)"
+                className="w-1/2 rounded-md border-gray-300"
+              />
+              {extraServices.length > 1 && (
+                <RemoveButton onClick={() => removeExtraService(index)} />
+              )}
+            </div>
+          ))}
+          <AddButton
+            onClick={() => addExtraService({ service: "", price: "" })}
+          >
+            + Añadir servicio adicional
           </AddButton>
         </FormSection>
 
@@ -991,7 +1069,6 @@ function CreatePackagePage() {
                 <option value="PUBLISHED">Publicado</option>
               </select>
             </FormField>
-
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # Nuestras apps
     'users',
     'tours',
+    'bookings'
 ]
 
 MIDDLEWARE = [

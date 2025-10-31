@@ -37,7 +37,7 @@ class Environment(models.TextChoices):
     RELAXING_NO_MUSIC = "RELAXING_NO_MUSIC", "😌 Relajante sin Música"
     ADVENTUROUS = "ADVENTUROUS", "🧗 Aventurero/Extremo"
     CULTURAL = "CULTURAL", "🏛️ Cultural/Educativo"
-    ROMANTIC = "ROMANTIC", "💝 Romántico"
+    ROMANTIC = "ROMANTIC", "💑 Romántico"
     FAMILY = "FAMILY", "👨‍👩‍👧‍👦 Familiar"
     LUXURY = "LUXURY", "🌟 Lujo/Exclusivo"
     NATURE = "NATURE", "🌳 Naturaleza"
@@ -48,11 +48,6 @@ class Environment(models.TextChoices):
     WELLNESS = "WELLNESS", "💆 Wellness"
 
 class Tag(models.Model):
-    """
-    Modelo para etiquetas informativas (tags). 
-    Creando un modelo separado, podemos añadir tantas etiquetas como queramos
-    sin hacer el modelo TourPackage gigantesco. Es mucho más flexible.
-    """
     name = models.CharField(max_length=50, unique=True, verbose_name="Nombre de la Etiqueta")
 
     def __str__(self):
@@ -63,7 +58,6 @@ class Tag(models.Model):
         verbose_name_plural = "Etiquetas"
 
 class IncludedItem(models.Model):
-    """Un ítem que puede estar incluido en un paquete (ej. Transporte, Almuerzo)."""
     name = models.CharField(max_length=100, unique=True, verbose_name="Nombre del Ítem")
     
     def __str__(self):
@@ -75,14 +69,12 @@ class IncludedItem(models.Model):
 
 class TourPackage(models.Model):
     """
-    El modelo central que representa un paquete turístico.
+    Modelo optimizado con manejo correcto de precios y comisiones
     """
-    # Disponibilidad - Date
     class AvailabilityType(models.TextChoices):
         OPEN_DATES = "OPEN_DATES", "Fechas Abiertas"
         SPECIFIC_DATE = "SPECIFIC_DATE", "Fecha Específica"
     
-    # Estado del paquete
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Borrador"
         PENDING = "PENDING", "Pendiente de Aprobación"
@@ -96,64 +88,102 @@ class TourPackage(models.Model):
         verbose_name="Estado de Origen",
         default="Distrito Capital"
     )
-
     specific_origin = models.CharField(
         max_length=150,
         verbose_name="Lugar Específico de Origen",
-        help_text="Ej: Aeropuerto de Maiquetía, Terminal de La Bandera",
+        help_text="Ej: Aeropuerto de Maiquetía",
         default="Por definir"
     )
-
     state_destination = models.CharField(
         max_length=50,
         choices=VENEZUELA_STATES,
         verbose_name="Estado de Destino", 
         default="Miranda"
     )
-
     specific_destination = models.CharField(
         max_length=150,
         verbose_name="Destino Específico",
-        help_text="Ej: Playa Colorada, Parque Nacional Morrocoy",
+        help_text="Ej: Playa Colorada",
         default="Por definir"
     )
 
-    # Precio y Comisión
+    # ============ SISTEMA DE PRECIOS OPTIMIZADO ============
+    
+    # Precio base (SIN comisión - lo que ingresa el operador)
     base_price = models.DecimalField(
         max_digits=10, 
         decimal_places=2,
-        validators=[
-            MinValueValidator(Decimal('1.00'), message="El precio debe ser al menos $1.00")
-        ],
-        verbose_name="Precio Base",
-        help_text="Precio base antes de comisiones"
+        validators=[MinValueValidator(Decimal('1.00'))],
+        verbose_name="Precio Base (sin comisión)",
+        help_text="Precio neto antes de aplicar comisión de plataforma"
     )
     
+    # Tasa de comisión de la plataforma
     commission_rate = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
         default=Decimal('0.10'),
         validators=[
             MinValueValidator(Decimal('0.00')),
-            MaxValueValidator(Decimal('1.00'), message="La comisión no puede ser mayor al 100%")
+            MaxValueValidator(Decimal('1.00'))
         ],
-        verbose_name="Tasa de Comisión"
+        verbose_name="Tasa de Comisión (%)",
+        help_text="Comisión de la plataforma (0.10 = 10%)"
     )
     
+    # Precio final con comisión (calculado automáticamente)
     final_price = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         verbose_name="Precio Final (con comisión)",
         null=True,
         blank=True,
-        editable=False
+        editable=False,
+        help_text="Calculado automáticamente: base_price * (1 + commission_rate)"
     )
+
+    # Variaciones de precio (SIN comisión - precios netos)
+    # Formato: {"adulto": "100.00", "niño": "50.00", "tercera_edad": "70.00"}
+    price_variations = models.JSONField(
+        blank=True, 
+        null=True, 
+        verbose_name="Variaciones de Precio (sin comisión)",
+        help_text='Precios netos por tipo. Ej: {"adulto": 100.00, "niño": 50.00}'
+    )
+    
+    # Variaciones con comisión aplicada (calculado automáticamente)
+    price_variations_with_commission = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name="Variaciones de Precio (con comisión)",
+        editable=False,
+        help_text="Calculado automáticamente aplicando commission_rate"
+    )
+    
+    # Servicios adicionales (SIN comisión - precios netos)
+    # Formato: {"comidas": "40.00", "seguro_viaje": "30.00"}
+    extra_services = models.JSONField(
+        blank=True, 
+        null=True,
+        verbose_name="Servicios Adicionales (sin comisión)", 
+        help_text='Precios netos. Ej: {"comidas": 40.00, "seguro": 30.00}'
+    )
+    
+    # Servicios adicionales con comisión (calculado automáticamente)
+    extra_services_with_commission = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name="Servicios Adicionales (con comisión)",
+        editable=False,
+        help_text="Calculado automáticamente aplicando commission_rate"
+    )
+
+    # ============ FIN SISTEMA DE PRECIOS ============
 
     # Información básica
     title = models.CharField(max_length=200, verbose_name="Título", default="")
     description = models.TextField(verbose_name="Descripción Larga")
     
-    # Relación con el operador
     operator = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
@@ -162,7 +192,6 @@ class TourPackage(models.Model):
         limit_choices_to={'role': 'OPERATOR'}
     )
 
-    # Estado del paquete
     status = models.CharField(
         max_length=20, 
         choices=Status.choices, 
@@ -185,25 +214,16 @@ class TourPackage(models.Model):
         verbose_name="Entorno/Ambiente"
     )
 
-    # Capacidad - SOLO group_size
+    # Capacidad
     group_size = models.PositiveIntegerField(
         default=10,
         verbose_name="Tamaño Máximo del Grupo",
-        help_text="Número máximo de participantes",
         validators=[MinValueValidator(1)]
     )
     
     current_bookings = models.PositiveIntegerField(
         default=0,
-        verbose_name="Reservas Actuales",
-        help_text="Número de plazas reservadas"
-    )
-
-    # Precios variables
-    variable_prices = models.JSONField(
-        blank=True, null=True, 
-        verbose_name="Precios Adicionales",
-        help_text="Ejemplo: {'niños': 50.00, 'tercera_edad': 45.00}"
+        verbose_name="Reservas Actuales"
     )
 
     # Qué incluye y qué no
@@ -222,15 +242,15 @@ class TourPackage(models.Model):
 
     # Información detallada
     highlights = models.JSONField(
-        blank=True, null=True,
-        verbose_name="Puntos Destacados",
-        help_text="Lista de puntos destacados, ej: ['Playa privada', 'Buffet incluido', 'Guía bilingüe']"
+        blank=True, 
+        null=True,
+        verbose_name="Puntos Destacados"
     )
     
     itinerary = models.JSONField(
-        blank=True, null=True, 
-        verbose_name="Itinerario Detallado",
-        help_text="Ejemplo: {'Día 1': 'Salida y llegada...', 'Día 2': 'Excursión...'}"
+        blank=True, 
+        null=True, 
+        verbose_name="Itinerario Detallado"
     )
 
     # Disponibilidad
@@ -241,70 +261,85 @@ class TourPackage(models.Model):
         verbose_name="Tipo de Disponibilidad"
     )
     
-    # Para paquetes con fechas abiertas
-    available_from = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name="Disponible Desde",
-        help_text="Fecha de inicio del rango de disponibilidad"
-    )
-    
-    available_until = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name="Disponible Hasta",
-        help_text="Fecha de fin del rango de disponibilidad"
-    )
-    
-    # Para paquetes con fecha específica
-    departure_date = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name="Fecha de Salida",
-        help_text="Fecha específica de salida del tour"
-    )
-    
-    departure_time = models.TimeField(
-        null=True,
-        blank=True,
-        verbose_name="Hora de Salida",
-        help_text="Hora específica de salida"
+    available_from = models.DateField(null=True, blank=True)
+    available_until = models.DateField(null=True, blank=True)
+    departure_date = models.DateField(null=True, blank=True)
+    departure_time = models.TimeField(null=True, blank=True)
+
+    # Relación con etiquetas
+    tags = models.ManyToManyField(
+        Tag, 
+        blank=True, 
+        related_name="tour_packages", 
+        verbose_name="Etiquetas"
     )
 
-    # Relación con las etiquetas
-    tags = models.ManyToManyField(Tag, blank=True, related_name="tour_packages", verbose_name="Etiquetas Informativas")
-
-    # Gestión y estado
-    is_active = models.BooleanField(default=True, verbose_name="Paquete Activo")
-    is_recurring = models.BooleanField(default=False, verbose_name="Es Recurrente")
+    # Gestión
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    is_recurring = models.BooleanField(default=False, verbose_name="Recurrente")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def _apply_commission(self, price):
+        """Aplica la comisión a un precio"""
+        if price is None:
+            return None
+        price_decimal = Decimal(str(price))
+        commission_rate_decimal = Decimal(str(self.commission_rate))
+        final = price_decimal * (Decimal('1') + commission_rate_decimal)
+        return final.quantize(Decimal('0.01'))
+
+    def _calculate_prices_with_commission(self):
+        """Calcula todos los precios con comisión aplicada"""
+        # Precio base con comisión
+        if self.base_price:
+            self.final_price = self._apply_commission(self.base_price)
+        
+        # Variaciones de precio con comisión
+        if self.price_variations:
+            variations_with_commission = {}
+            for key, price in self.price_variations.items():
+                variations_with_commission[key] = float(
+                    self._apply_commission(price)
+                )
+            self.price_variations_with_commission = variations_with_commission
+        else:
+            self.price_variations_with_commission = None
+        
+        # Servicios adicionales con comisión
+        if self.extra_services:
+            services_with_commission = {}
+            for key, price in self.extra_services.items():
+                services_with_commission[key] = float(
+                    self._apply_commission(price)
+                )
+            self.extra_services_with_commission = services_with_commission
+        else:
+            self.extra_services_with_commission = None
+
     def clean(self):
-        """Validaciones personalizadas MEJORADAS"""
+        """Validaciones personalizadas"""
         super().clean()
         
-        # Validar que al menos un tipo de fecha esté completo
+        # Validar disponibilidad
         if self.availability_type == self.AvailabilityType.OPEN_DATES:
             if not self.available_from or not self.available_until:
                 raise ValidationError({
-                    'available_from': 'Para fechas abiertas, debe especificar el rango completo.',
-                    'available_until': 'Para fechas abiertas, debe especificar el rango completo.'
+                    'available_from': 'Debe especificar el rango completo.',
+                    'available_until': 'Debe especificar el rango completo.'
                 })
             
             if self.available_from >= self.available_until:
                 raise ValidationError({
-                    'available_until': 'La fecha final debe ser posterior a la fecha inicial.'
+                    'available_until': 'La fecha final debe ser posterior.'
                 })
             
-            # Validar que no sea en el pasado
             if self.available_from < timezone.now().date():
                 raise ValidationError({
-                    'available_from': 'La fecha de inicio no puede ser en el pasado.'
+                    'available_from': 'No puede ser en el pasado.'
                 })
                 
-            # Limpiar campos de fecha específica
             self.departure_date = None
             self.departure_time = None
         
@@ -314,79 +349,63 @@ class TourPackage(models.Model):
                     'departure_date': 'Debe especificar la fecha de salida.'
                 })
             
-            # Validar que la fecha específica no sea en el pasado
             if self.departure_date < timezone.now().date():
                 raise ValidationError({
-                    'departure_date': 'La fecha de salida no puede ser en el pasado.'
+                    'departure_date': 'No puede ser en el pasado.'
                 })
                 
-            # Limpiar campos de fechas abiertas
             self.available_from = None
             self.available_until = None
         
         # Validar capacidad
         if self.current_bookings > self.group_size:
             raise ValidationError({
-                'current_bookings': f'Las reservas actuales ({self.current_bookings}) no pueden superar el tamaño del grupo ({self.group_size}).'
+                'current_bookings': f'No puede superar {self.group_size}.'
             })
 
     def save(self, *args, **kwargs):
-        """Sobrescribir save para calcular precio final y validar"""
-        # Calcular precio final
-        if self.base_price is not None and self.commission_rate is not None:
-            base_price_decimal = Decimal(str(self.base_price))
-            commission_rate_decimal = Decimal(str(self.commission_rate))
-            self.final_price = base_price_decimal * (1 + commission_rate_decimal)
-            self.final_price = self.final_price.quantize(Decimal('0.01'))
-        else:
-            self.final_price = self.base_price
+        """Sobrescribir save para calcular precios con comisión"""
+        # Calcular todos los precios con comisión
+        self._calculate_prices_with_commission()
         
         # Ejecutar validaciones
         try:
             self.full_clean()
         except ValidationError as e:
-            # Si hay errores de validación, relanzarlos para que se muestren en el formulario
             raise e
         
         super().save(*args, **kwargs)
 
     @property
     def available_slots(self):
-        """Calcula las plazas disponibles"""
         return self.group_size - self.current_bookings
     
     @property
     def is_available(self):
-        """Verifica si hay disponibilidad"""
         return self.available_slots > 0
     
     @property
     def is_full(self):
-        """Verifica si está lleno"""
         return self.current_bookings >= self.group_size
 
     @property
     def main_image(self):
-        """Obtener la imagen principal del paquete"""
         try:
             return self.images.filter(is_main_image=True).first()
-        except PackageImage.DoesNotExist:
+        except:
             return self.images.first()
 
     @property
     def average_rating(self):
-        """Calcular rating promedio"""
         from django.db.models import Avg
         result = self.reviews.filter(is_approved=True).aggregate(Avg('rating'))
         return result['rating__avg'] or 0
 
     @property
     def rating_count(self):
-        """Contar reseñas aprobadas"""
         return self.reviews.filter(is_approved=True).count()
 
     def increment_bookings(self, count=1):
-        """Método seguro para incrementar reservas"""
         if self.current_bookings + count <= self.group_size:
             self.current_bookings += count
             self.save()
@@ -394,7 +413,6 @@ class TourPackage(models.Model):
         return False
 
     def decrement_bookings(self, count=1):
-        """Método seguro para decrementar reservas"""
         if self.current_bookings - count >= 0:
             self.current_bookings -= count
             self.save()
@@ -418,99 +436,49 @@ class TourPackage(models.Model):
         ]
 
 class PackageImage(models.Model):
-    """ Modelo para manejar una galería de imágenes por paquete. """
     tour_package = models.ForeignKey(
         TourPackage, 
         on_delete=models.CASCADE, 
-        related_name="images", 
-        verbose_name="Paquete Turístico"
+        related_name="images"
     )
-    image = models.ImageField(
-        upload_to='tour_packages/%Y/%m/%d/', 
-        verbose_name="Imagen"
-    )
-    is_main_image = models.BooleanField(
-        default=False, 
-        verbose_name="Es Imagen Principal"
-    )
-    caption = models.CharField(
-        max_length=200, 
-        blank=True, 
-        verbose_name="Leyenda"
-    )
-    order = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Orden"
-    )
+    image = models.ImageField(upload_to='tour_packages/%Y/%m/%d/')
+    is_main_image = models.BooleanField(default=False)
+    caption = models.CharField(max_length=200, blank=True)
+    order = models.PositiveIntegerField(default=0)
     
     def save(self, *args, **kwargs):
-        """Asegurar que solo haya una imagen principal"""
         if self.is_main_image:
-            # Quitar la imagen principal anterior
             PackageImage.objects.filter(
                 tour_package=self.tour_package, 
                 is_main_image=True
             ).update(is_main_image=False)
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return f"Imagen para {self.tour_package.title}"
-
     class Meta:
         ordering = ['order', 'id']
-        verbose_name = "Imagen del Paquete"
-        verbose_name_plural = "Imágenes del Paquete"
 
 class Review(models.Model):
-    """ Modelo para las reseñas y calificaciones (1 a 5 estrellas). """
     tour_package = models.ForeignKey(
         TourPackage, 
         on_delete=models.CASCADE, 
-        related_name="reviews", 
-        verbose_name="Paquete Turístico"
+        related_name="reviews"
     )
     traveler = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
-        related_name="reviews", 
-        verbose_name="Viajero",
+        related_name="reviews",
         limit_choices_to={'role': 'TRAVELER'}
     )
     rating = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        verbose_name="Calificación (1-5 estrellas)"
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
-    title = models.CharField(
-        max_length=200, 
-        verbose_name="Título de la Reseña",
-        default="Reseña sin título"
-    )
-    comment = models.TextField(verbose_name="Comentario")
-    
-    # Respuesta del operador
-    operator_response = models.TextField(
-        blank=True,
-        verbose_name="Respuesta del Operador"
-    )
-    response_date = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name="Fecha de Respuesta"
-    )
-    
-    # Aprobación de reseñas
-    is_approved = models.BooleanField(
-        default=False,
-        verbose_name="Reseña Aprobada"
-    )
-    
+    title = models.CharField(max_length=200, default="Reseña sin título")
+    comment = models.TextField()
+    operator_response = models.TextField(blank=True)
+    response_date = models.DateTimeField(null=True, blank=True)
+    is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Reseña de {self.traveler.username} para {self.tour_package.title}"
 
     class Meta:
         unique_together = ('tour_package', 'traveler')
         ordering = ['-created_at']
-        verbose_name = "Reseña"
-        verbose_name_plural = "Reseñas"

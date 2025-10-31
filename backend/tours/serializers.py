@@ -1,4 +1,3 @@
-# tours/serializers.py
 from rest_framework import serializers
 from django.db import transaction
 from .models import TourPackage, PackageImage, Review, Tag, IncludedItem
@@ -41,7 +40,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields = ['traveler_name', 'traveler_username', 'response_date', 'created_at']
 
 class TourPackageListSerializer(serializers.ModelSerializer):
-    """Serializer para listar paquetes (mínima información)"""
+    """Serializer optimizado para listar paquetes"""
     operator_name = serializers.CharField(source='operator.get_full_name', read_only=True)
     operator_username = serializers.CharField(source='operator.username', read_only=True)
     available_slots = serializers.ReadOnlyField()
@@ -49,13 +48,19 @@ class TourPackageListSerializer(serializers.ModelSerializer):
     rating_count = serializers.ReadOnlyField()
     main_image = serializers.SerializerMethodField()
     
+    # Campos de pricing optimizados
+    display_price = serializers.SerializerMethodField()
+    has_price_variations = serializers.SerializerMethodField()
+    
     class Meta:
         model = TourPackage
         fields = [
             'id', 'title', 'state_destination', 'specific_destination',
-            'base_price', 'final_price', 'duration_days', 'operator_name',
-            'operator_username', 'available_slots', 'average_rating',
-            'rating_count', 'main_image', 'environment', 'status', 'is_active'
+            'base_price', 'final_price', 'commission_rate',
+            'display_price', 'has_price_variations',
+            'duration_days', 'operator_name', 'operator_username', 
+            'available_slots', 'average_rating', 'rating_count', 
+            'main_image', 'environment', 'status', 'is_active'
         ]
     
     def get_main_image(self, obj):
@@ -63,6 +68,18 @@ class TourPackageListSerializer(serializers.ModelSerializer):
         if main_image:
             return PackageImageSerializer(main_image).data
         return None
+    
+    def get_display_price(self, obj):
+        """Precio a mostrar en listados (con comisión)"""
+        if obj.price_variations_with_commission:
+            # Si hay variaciones, mostrar el precio más bajo
+            prices = [float(p) for p in obj.price_variations_with_commission.values()]
+            return min(prices) if prices else float(obj.final_price or 0)
+        return float(obj.final_price or 0)
+    
+    def get_has_price_variations(self, obj):
+        """Indica si tiene variaciones de precio"""
+        return bool(obj.price_variations_with_commission)
 
 class TourPackageDetailSerializer(serializers.ModelSerializer):
     """Serializer completo para detalle de paquetes"""
@@ -105,44 +122,98 @@ class TourPackageDetailSerializer(serializers.ModelSerializer):
         required=False
     )
     
-    # Validación de precios
+    # Validaciones de precios
+    def validate_price_variations(self, value):
+        """Valida que price_variations tenga formato correcto"""
+        if value:
+            if not isinstance(value, dict):
+                raise serializers.ValidationError(
+                    "Las variaciones de precio deben ser un objeto JSON"
+                )
+            
+            for key, price in value.items():
+                try:
+                    price_float = float(price)
+                    if price_float < 0:
+                        raise serializers.ValidationError(
+                            f"El precio para '{key}' no puede ser negativo"
+                        )
+                except (ValueError, TypeError):
+                    raise serializers.ValidationError(
+                        f"Precio inválido para '{key}'"
+                    )
+        
+        return value
+    
+    def validate_extra_services(self, value):
+        """Valida que extra_services tenga formato correcto"""
+        if value:
+            if not isinstance(value, dict):
+                raise serializers.ValidationError(
+                    "Los servicios adicionales deben ser un objeto JSON"
+                )
+            
+            for key, price in value.items():
+                try:
+                    price_float = float(price)
+                    if price_float < 0:
+                        raise serializers.ValidationError(
+                            f"El precio para '{key}' no puede ser negativo"
+                        )
+                except (ValueError, TypeError):
+                    raise serializers.ValidationError(
+                        f"Precio inválido para '{key}'"
+                    )
+        
+        return value
+    
     def validate_base_price(self, value):
         if value < Decimal('1.00'):
-            raise serializers.ValidationError("El precio base debe ser al menos $1.00")
+            raise serializers.ValidationError(
+                "El precio base debe ser al menos $1.00"
+            )
         return value
     
     def validate_commission_rate(self, value):
         if value < Decimal('0.00') or value > Decimal('1.00'):
-            raise serializers.ValidationError("La tasa de comisión debe estar entre 0% y 100%")
+            raise serializers.ValidationError(
+                "La comisión debe estar entre 0% y 100%"
+            )
         return value
     
     def validate_duration_days(self, value):
         if value < 1:
-            raise serializers.ValidationError("La duración debe ser de al menos 1 día")
+            raise serializers.ValidationError(
+                "La duración debe ser al menos 1 día"
+            )
         return value
     
     def validate_group_size(self, value):
         if value < 1:
-            raise serializers.ValidationError("El tamaño del grupo debe ser al menos 1")
+            raise serializers.ValidationError(
+                "El tamaño del grupo debe ser al menos 1"
+            )
         return value
     
     def validate_current_bookings(self, value):
         if value < 0:
-            raise serializers.ValidationError("Las reservas actuales no pueden ser negativas")
+            raise serializers.ValidationError(
+                "Las reservas no pueden ser negativas"
+            )
         return value
     
     def validate(self, data):
         """Validaciones cruzadas"""
-        # Validar que current_bookings no exceda group_size
+        # Validar capacidad
         group_size = data.get('group_size', getattr(self.instance, 'group_size', None))
         current_bookings = data.get('current_bookings', getattr(self.instance, 'current_bookings', 0))
         
         if group_size and current_bookings > group_size:
             raise serializers.ValidationError({
-                'current_bookings': f'Las reservas actuales ({current_bookings}) no pueden exceder el tamaño del grupo ({group_size})'
+                'current_bookings': f'Las reservas ({current_bookings}) no pueden exceder el tamaño del grupo ({group_size})'
             })
         
-        # Validar disponibilidad de fechas
+        # Validar disponibilidad
         availability_type = data.get('availability_type', getattr(self.instance, 'availability_type', None))
         
         if availability_type == TourPackage.AvailabilityType.OPEN_DATES:
@@ -151,13 +222,13 @@ class TourPackageDetailSerializer(serializers.ModelSerializer):
             
             if not available_from or not available_until:
                 raise serializers.ValidationError({
-                    'available_from': 'Para fechas abiertas, debe especificar el rango completo',
-                    'available_until': 'Para fechas abiertas, debe especificar el rango completo'
+                    'available_from': 'Especifique el rango completo',
+                    'available_until': 'Especifique el rango completo'
                 })
             
             if available_from >= available_until:
                 raise serializers.ValidationError({
-                    'available_until': 'La fecha final debe ser posterior a la fecha inicial'
+                    'available_until': 'Debe ser posterior a la fecha inicial'
                 })
         
         elif availability_type == TourPackage.AvailabilityType.SPECIFIC_DATE:
@@ -165,7 +236,7 @@ class TourPackageDetailSerializer(serializers.ModelSerializer):
             
             if not departure_date:
                 raise serializers.ValidationError({
-                    'departure_date': 'Para fecha específica, debe especificar la fecha de salida'
+                    'departure_date': 'Especifique la fecha de salida'
                 })
         
         return data
@@ -179,8 +250,14 @@ class TourPackageDetailSerializer(serializers.ModelSerializer):
             # Origen y destino
             'state_origin', 'specific_origin', 'state_destination', 'specific_destination',
             
-            # Precios
-            'base_price', 'commission_rate', 'final_price', 'variable_prices',
+            # Precios (SIN comisión - lo que ingresa el operador)
+            'base_price', 'commission_rate', 
+            'price_variations', 'extra_services',
+            
+            # Precios CON comisión (calculados automáticamente - solo lectura)
+            'final_price', 
+            'price_variations_with_commission',
+            'extra_services_with_commission',
             
             # Información del operador
             'operator', 'operator_name', 'operator_username',
@@ -193,7 +270,7 @@ class TourPackageDetailSerializer(serializers.ModelSerializer):
             'availability_type', 'available_from', 'available_until',
             'departure_date', 'departure_time',
             
-            # Contenido e itinerario
+            # Contenido
             'highlights', 'itinerary',
             
             # Campos calculados
@@ -210,7 +287,9 @@ class TourPackageDetailSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'final_price', 'operator_name', 'operator_username',
+            'final_price', 'price_variations_with_commission', 
+            'extra_services_with_commission',
+            'operator_name', 'operator_username',
             'available_slots', 'average_rating', 'rating_count',
             'is_available', 'is_full', 'created_at', 'updated_at'
         ]
@@ -219,16 +298,16 @@ class TourPackageCreateSerializer(TourPackageDetailSerializer):
     """Serializer específico para creación con validaciones adicionales"""
     
     def create(self, validated_data):
-        # Extraer datos de relaciones many-to-many
+        # Extraer relaciones many-to-many
         tags = validated_data.pop('tags', [])
         included_items = validated_data.pop('what_is_included', [])
         not_included_items = validated_data.pop('what_is_not_included', [])
         
         with transaction.atomic():
-            # Crear el paquete
+            # Crear el paquete (los precios con comisión se calculan automáticamente)
             tour_package = TourPackage.objects.create(**validated_data)
             
-            # Establecer relaciones many-to-many
+            # Establecer relaciones
             tour_package.tags.set(tags)
             tour_package.what_is_included.set(included_items)
             tour_package.what_is_not_included.set(not_included_items)
@@ -236,19 +315,19 @@ class TourPackageCreateSerializer(TourPackageDetailSerializer):
             return tour_package
     
     def update(self, instance, validated_data):
-        # Extraer datos de relaciones many-to-many
+        # Extraer relaciones many-to-many
         tags = validated_data.pop('tags', None)
         included_items = validated_data.pop('what_is_included', None)
         not_included_items = validated_data.pop('what_is_not_included', None)
         
         with transaction.atomic():
-            # Actualizar campos del modelo
+            # Actualizar campos (los precios con comisión se recalculan automáticamente)
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
             
             instance.save()
             
-            # Actualizar relaciones si se proporcionaron
+            # Actualizar relaciones
             if tags is not None:
                 instance.tags.set(tags)
             if included_items is not None:
@@ -259,7 +338,7 @@ class TourPackageCreateSerializer(TourPackageDetailSerializer):
             return instance
 
 class ImageUploadSerializer(serializers.ModelSerializer):
-    """Serializer específico para subir imágenes"""
+    """Serializer para subir imágenes"""
     class Meta:
         model = PackageImage
         fields = ['id', 'image', 'is_main_image', 'caption', 'order']
@@ -277,13 +356,12 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
     
     def create(self, validated_data):
-        # Asignar automáticamente el viajero desde el request
         validated_data['traveler'] = self.context['request'].user
         validated_data['tour_package_id'] = self.context['view'].kwargs.get('tour_package_pk')
         return super().create(validated_data)
 
 class TourPackageStatsSerializer(serializers.Serializer):
-    """Serializer para estadísticas de paquetes"""
+    """Serializer para estadísticas"""
     total_packages = serializers.IntegerField()
     published_packages = serializers.IntegerField()
     draft_packages = serializers.IntegerField()
@@ -291,45 +369,3 @@ class TourPackageStatsSerializer(serializers.Serializer):
     total_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2)
     total_bookings = serializers.IntegerField()
-
-# Serializers para filtros y búsquedas
-class TourPackageFilterSerializer(serializers.Serializer):
-    """Serializer para validar parámetros de filtro"""
-    state_destination = serializers.CharField(required=False)
-    min_price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-    max_price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-    duration_min = serializers.IntegerField(required=False, min_value=1)
-    duration_max = serializers.IntegerField(required=False, min_value=1)
-    environment = serializers.CharField(required=False)
-    availability_type = serializers.CharField(required=False)
-    departure_date = serializers.DateField(required=False)
-    tags = serializers.CharField(required=False)  # IDs separados por comas
-    operator = serializers.IntegerField(required=False)
-    is_active = serializers.BooleanField(required=False, default=True)
-    
-    def validate_min_price(self, value):
-        if value and value < Decimal('0.00'):
-            raise serializers.ValidationError("El precio mínimo no puede ser negativo")
-        return value
-    
-    def validate_max_price(self, value):
-        if value and value < Decimal('0.00'):
-            raise serializers.ValidationError("El precio máximo no puede ser negativo")
-        return value
-
-class SearchSerializer(serializers.Serializer):
-    """Serializer para búsqueda"""
-    q = serializers.CharField(required=False, allow_blank=True)
-    state = serializers.CharField(required=False)
-    sort_by = serializers.ChoiceField(
-        choices=[
-            ('price_asc', 'Precio: Menor a Mayor'),
-            ('price_desc', 'Precio: Mayor a Menor'),
-            ('duration_asc', 'Duración: Corta a Larga'),
-            ('duration_desc', 'Duración: Larga a Corta'),
-            ('rating_desc', 'Mejor Calificados'),
-            ('newest', 'Más Recientes'),
-        ],
-        required=False,
-        default='newest'
-    )
