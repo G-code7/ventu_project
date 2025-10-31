@@ -232,6 +232,7 @@ REST_AUTH = {
     'JWT_AUTH_HTTPONLY': False,
     'SESSION_LOGIN': False,
     'OLD_PASSWORD_FIELD_ENABLED': True,
+    'REGISTER_SERIALIZER': 'users.serializers.UserRegistrationSerializer',
 }
 # ==============================================================================
 # Security Settings

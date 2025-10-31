@@ -4,7 +4,6 @@ from django.contrib.auth.models import AbstractUser
 class CustomUser(AbstractUser):
     """
     Extendemos el modelo de Usuario de Django para añadir roles.
-    Esto nos da toda la seguridad y funcionalidades de Django gratis.
     """
     class Role(models.TextChoices):
         TRAVELER = "TRAVELER", "Viajero"
@@ -17,11 +16,23 @@ class CustomUser(AbstractUser):
     
     # Hacemos que el email sea el campo de login en lugar del username
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username'] # 'username' sigue siendo requerido internamente
+    REQUIRED_FIELDS = ['username']
 
     def __str__(self):
         return self.email
 
+    # def save(self, *args, **kwargs):
+    #     is_new = self.pk is None
+    #     super().save(*args, **kwargs)
+        
+    #     # Crear perfil automáticamente según el rol
+    #     if is_new:
+    #         if self.role == self.Role.TRAVELER:
+    #             from .models import TravelerProfile
+    #             TravelerProfile.objects.get_or_create(user=self)
+    #         elif self.role == self.Role.OPERATOR:
+    #             from .models import OperatorProfile
+    #             OperatorProfile.objects.get_or_create(user=self)
 
 class TravelerProfile(models.Model):
     """
@@ -55,7 +66,7 @@ class OperatorProfile(models.Model):
         ACTIVE = "ACTIVE", "Activo"
         SUSPENDED = "SUSPENDED", "Suspendido"
 
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True, related_name="operatorprofile")
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True, related_name="operator_profile", verbose_name="Usuario")
     organization_name = models.CharField(max_length=200, verbose_name="Nombre de la Organización")
     
     # Separamos el RIF en tipo y número
@@ -73,5 +84,4 @@ class OperatorProfile(models.Model):
     class Meta:
         verbose_name = "Perfil de Operador"
         verbose_name_plural = "Perfiles de Operador"
-        # Hacemos que el RIF completo sea único
         unique_together = ('rif_type', 'rif_number')

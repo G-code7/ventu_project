@@ -32,11 +32,13 @@ function RegisterModal({ isOpen, onClose, onLoginClick }) {
         }
 
         try {
-            await axiosInstance.post('/auth/registration/', data);
+            const response = await axiosInstance.post('/auth/registration/', data);
+            // console.log('Respuesta del servidor:', response.data);
             setSuccessMessage('¡Registro exitoso! Por favor, inicia sesión para continuar.');
         } catch (err) {
             const errorData = err.response?.data || {};
-            console.error("Error de registro:", errorData);
+            console.error("Error de registro completo:", err);
+            console.error("Datos del error:", errorData);
             
             let errorMessage = 'Ocurrió un error. Por favor, intenta de nuevo.';
             const firstErrorKey = Object.keys(errorData)[0];
