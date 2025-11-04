@@ -11,10 +11,10 @@ import CreatePackagePage from "./modules/Dashboard/createPackagePage";
 import EditPackagePage from "./modules/Dashboard/editPackagePage";
 import TourDetailPage from "./modules/Tours/tourDetailPage";
 import AuthLoader from "./modules/Auth/authLoader";
-import { lazy, Suspense } from 'react';
-import CheckoutPage from './modules/Bookings/checkoutPage';
-import MyTripsPage from './modules/Bookings/myTripsPage';
-
+import { lazy, Suspense } from "react";
+import CheckoutPage from "./modules/Bookings/checkoutPage";
+import MyTripsPage from "./modules/Bookings/myTripsPage";
+import Destinos from "./modules/Tours/destinos";
 
 function AppContent() {
   const { user, authTokens } = useAuth();
@@ -23,10 +23,11 @@ function AppContent() {
     <Routes>
       <Route element={<PageLayout />}>
         <Route path="/" element={<HomePage />} />
-        
+
         {/* Rutas públicas */}
         <Route path="/tour/:tourId" element={<TourDetailPage />} />
-        
+        <Route path="/destinos" element={<Destinos />} />
+
         {/* Rutas protegidas */}
         <Route element={<ProtectedRoute />}>
           <Route path="me" element={<ProfilePage />} />
@@ -34,25 +35,15 @@ function AppContent() {
             path="operator/create-package"
             element={<CreatePackagePage />}
           />
+
           <Route
             path="operator/edit-package/:packageId"
             element={<EditPackagePage />}
           />
-          
-          {/* NUEVAS RUTAS DE BOOKING */}
-          <Route
-            path="/checkout"
-            element={
-              <CheckoutPage />
-            }
-          />
-          
-          <Route
-            path="/my-trips"
-            element={
-              <MyTripsPage />
-            }
-          />
+
+          {/* RUTAS DE BOOKING */}
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/my-trips" element={<MyTripsPage />} />
         </Route>
       </Route>
     </Routes>

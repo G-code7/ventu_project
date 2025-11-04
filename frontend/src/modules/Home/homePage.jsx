@@ -28,9 +28,7 @@ function HomePage() {
   }, []);
 
   const handleBannerClick = () => {
-    // Aquí puedes redirigir a una página específica, tour destacado, etc.
     console.log("Banner clickeado - Redirigir a oferta especial");
-    // Ejemplo: navigate('/special-offer');
   };
 
   return (
@@ -40,8 +38,15 @@ function HomePage() {
         <FeaturedDestinations />
 
         <Section title="Experiencias Populares">
-          {loading && <p className="text-center">Cargando...</p>}
+          {loading && (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+            </div>
+          )}
           {error && <p className="text-center text-red-500">{error}</p>}
+          {!loading && !error && tours.length === 0 && (
+            <p className="text-center text-gray-500">No hay tours disponibles en este momento.</p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {tours.map((tour) => (
               <TourCard key={tour.id} tour={tour} />

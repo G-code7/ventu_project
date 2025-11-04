@@ -15,9 +15,7 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
     const data = Object.fromEntries(new FormData(e.target).entries());
     
     try {
-      console.log('🔄 Intentando login con:', { email: data.email });
       const response = await axiosInstance.post("/auth/login/", data);
-      console.log('✅ Login exitoso, respuesta:', response.data);
       if (!response.data.access || !response.data.refresh) {
         throw new Error('La respuesta del servidor no contiene tokens válidos');
       }
@@ -28,8 +26,6 @@ function LoginModal({ isOpen, onClose, onRegisterClick }) {
       };
       
       localStorage.setItem('authTokens', JSON.stringify(tokens));
-      console.log('💾 Tokens guardados en localStorage');
-      console.log('🔍 Token preview:', tokens.access.substring(0, 20) + '...');
       const tempAxios = axiosInstance.create ? 
         axiosInstance.create() : 
         axiosInstance;

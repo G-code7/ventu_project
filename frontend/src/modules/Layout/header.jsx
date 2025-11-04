@@ -52,9 +52,9 @@ function Header({ onLoginClick, onRegisterClick }) {
 
         {/* Navegación Principal (Centro) */}
         <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-700">
-          <a href="#" className="hover:text-orange-500 transition-colors">
+          <Link to="/destinos" className="hover:text-orange-500 transition-colors">
             Destinos
-          </a>
+          </Link>
           <a href="#" className="hover:text-orange-500 transition-colors">
             Experiencias
           </a>
