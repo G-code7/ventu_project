@@ -1,38 +1,104 @@
 import django_filters
+from django.db.models import Q
 from .models import TourPackage
+import unicodedata
+
 
 class TourPackageFilter(django_filters.FilterSet):
-    # Filtros de precio
-    base_price__lte = django_filters.NumberFilter(field_name='base_price', lookup_expr='lte')
-    base_price__gte = django_filters.NumberFilter(field_name='base_price', lookup_expr='gte')
     
-    # Filtro por tags
-    tags = django_filters.CharFilter(field_name='tags__name', lookup_expr='icontains')
+    # Búsqueda general (destination en Hero)
+    destination = django_filters.CharFilter(method='filter_destination')
     
-    # Filtro por ubicación (búsqueda parcial)
-    location = django_filters.CharFilter(field_name='location', lookup_expr='icontains')
+    # Búsqueda por texto libre
+    search = django_filters.CharFilter(method='filter_search')
     
-    # Filtro por destino
-    destination = django_filters.CharFilter(field_name='destination', lookup_expr='icontains')
+    # Filtros específicos
+    state_destination = django_filters.CharFilter(lookup_expr='iexact')
+    max_price = django_filters.NumberFilter(field_name='final_price', lookup_expr='lte')
+    min_price = django_filters.NumberFilter(field_name='final_price', lookup_expr='gte')
     
-    # Filtro por duración
-    duration_days = django_filters.NumberFilter(field_name='duration_days')
-    duration_days__gte = django_filters.NumberFilter(field_name='duration_days', lookup_expr='gte')
-    duration_days__lte = django_filters.NumberFilter(field_name='duration_days', lookup_expr='lte')
+    tags = django_filters.CharFilter(method='filter_tags')
+    environment = django_filters.CharFilter(field_name='environment', lookup_expr='iexact')
     
-    # Filtro por servicios adicionales
-    has_extra_services = django_filters.BooleanFilter(
-        field_name='extra_services', 
-        lookup_expr='isnull', 
-        exclude=True
-    )
-
+    duration_days = django_filters.NumberFilter()
+    min_duration = django_filters.NumberFilter(field_name='duration_days', lookup_expr='gte')
+    max_duration = django_filters.NumberFilter(field_name='duration_days', lookup_expr='lte')
+    
+    availability_type = django_filters.CharFilter(field_name='availability_type', lookup_expr='iexact')
+    
     class Meta:
         model = TourPackage
-        fields = {
-            'operator': ['exact'],
-            'is_active': ['exact'],
-            'is_recurring': ['exact'],
-            'environment': ['exact'],
-            'availability_type': ['exact'],
-        }
+        fields = []
+
+    def normalize_text(self, text):
+        """
+        Normaliza texto removiendo acentos y convirtiendo a lowercase.
+        
+        Ejemplos:
+        - "Choroní" → "choroni"
+        - "MÉRIDA" → "merida"
+        - "Los Roques" → "los roques"
+        """
+        if not text:
+            return ""
+        text = text.lower()
+        nfd = unicodedata.normalize('NFD', text)
+        without_accents = ''.join(
+            char for char in nfd 
+            if unicodedata.category(char) != 'Mn'
+        )
+        
+        return without_accents.strip()
+
+    def filter_destination(self, queryset, name, value):
+        if not value:
+            return queryset
+        search_normalized = self.normalize_text(value)
+        words = search_normalized.split()
+        q_objects = Q()
+        search_fields = [
+            'title',
+            'state_destination',
+            'specific_destination',
+            'state_origin',
+            'specific_origin',
+            'description'
+        ]
+        
+        for word in words:
+            word_q = Q()
+            for field in search_fields:
+                word_q |= Q(**{f'{field}__icontains': word})
+            
+            q_objects &= word_q
+        
+        filtered = queryset.filter(q_objects)
+        
+        if not filtered.exists():
+            flexible_q = Q()
+            for word in words:
+                for field in search_fields:
+                    flexible_q |= Q(**{f'{field}__icontains': word})
+            
+            filtered = queryset.filter(flexible_q)
+        
+        return filtered.distinct()
+
+    def filter_search(self, queryset, name, value):
+        """
+        Búsqueda global (mismo comportamiento que destination).
+        """
+        return self.filter_destination(queryset, name, value)
+
+    def filter_tags(self, queryset, name, value):
+        """
+        Filtrar por tags con tolerancia a mayúsculas/acentos.
+        """
+        if not value:
+            return queryset
+        
+        tag_normalized = self.normalize_text(value)
+        
+        return queryset.filter(
+            tags__name__icontains=value
+        ).distinct()

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { axiosInstance } from '../Auth/authContext';
-import TourCard from './tourCard';
-import { FilterIcon, GridIcon, ListIcon } from '../Shared/icons';
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { axiosInstance } from "../Auth/authContext";
+import TourCard from "./tourCard";
+import { FilterIcon, GridIcon, ListIcon } from "../Shared/icons";
 
 function Destinos() {
   const location = useLocation();
@@ -10,28 +10,28 @@ function Destinos() {
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    destination: '',
-    max_price: '',
-    tags: '',
-    environment: '',
-    duration_days: '',
-    availability_type: ''
+    destination: "",
+    max_price: "",
+    tags: "",
+    environment: "",
+    duration_days: "",
+    availability_type: "",
   });
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState("grid");
   const [showFilters, setShowFilters] = useState(false);
 
   // Parsear parámetros de la URL al cargar la página
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const initialFilters = {
-      destination: searchParams.get('destination') || '',
-      max_price: searchParams.get('max_price') || '',
-      tags: searchParams.get('tags') || '',
-      environment: searchParams.get('environment') || '',
-      duration_days: searchParams.get('duration_days') || '',
-      availability_type: searchParams.get('availability_type') || ''
+      destination: searchParams.get("destination") || "",
+      max_price: searchParams.get("max_price") || "",
+      tags: searchParams.get("tags") || "",
+      environment: searchParams.get("environment") || "",
+      duration_days: searchParams.get("duration_days") || "",
+      availability_type: searchParams.get("availability_type") || "",
     };
-    
+
     setFilters(initialFilters);
     fetchTours(initialFilters);
   }, [location.search]);
@@ -41,16 +41,22 @@ function Destinos() {
     try {
       // Limpiar parámetros vacíos
       const cleanParams = Object.fromEntries(
-        Object.entries(filterParams).filter(([_, value]) => value !== '')
+        Object.entries(filterParams).filter(([_, value]) => value !== "")
       );
 
-      const response = await axiosInstance.get('/api/tours/', {
-        params: cleanParams
+      // ✅ CORREGIDO: Eliminar /api duplicado
+      const response = await axiosInstance.get("/tours/", {
+        params: cleanParams,
       });
+
       console.log("Tours filtrados:", response.data);
-      setTours(response.data);
+
+      // Manejar respuesta paginada o array directo
+      const toursData = response.data.results || response.data;
+      setTours(Array.isArray(toursData) ? toursData : []);
     } catch (error) {
-      console.error('Error fetching tours:', error);
+      console.error("Error fetching tours:", error);
+      setTours([]);
     } finally {
       setLoading(false);
     }
@@ -59,7 +65,7 @@ function Destinos() {
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
-    
+
     // Actualizar URL sin recargar la página
     const searchParams = new URLSearchParams();
     Object.entries(newFilters).forEach(([filterKey, filterValue]) => {
@@ -67,21 +73,21 @@ function Destinos() {
         searchParams.append(filterKey, filterValue);
       }
     });
-    
+
     navigate(`/destinos?${searchParams.toString()}`, { replace: true });
   };
 
   const clearFilters = () => {
     const emptyFilters = {
-      destination: '',
-      max_price: '',
-      tags: '',
-      environment: '',
-      duration_days: '',
-      availability_type: ''
+      destination: "",
+      max_price: "",
+      tags: "",
+      environment: "",
+      duration_days: "",
+      availability_type: "",
     };
     setFilters(emptyFilters);
-    navigate('/destinos', { replace: true });
+    navigate("/destinos", { replace: true });
   };
 
   return (
@@ -99,13 +105,15 @@ function Destinos() {
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar de Filtros */}
-          <div className={`lg:w-80 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+          <div
+            className={`lg:w-80 ${showFilters ? "block" : "hidden lg:block"}`}
+          >
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-orange-600 hover:text-orange-700"
+                  className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                 >
                   Limpiar
                 </button>
@@ -120,7 +128,9 @@ function Destinos() {
                   <input
                     type="text"
                     value={filters.destination}
-                    onChange={(e) => handleFilterChange('destination', e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("destination", e.target.value)
+                    }
                     placeholder="Ej: Margarita, Canaima..."
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
                   />
@@ -134,8 +144,11 @@ function Destinos() {
                   <input
                     type="number"
                     value={filters.max_price}
-                    onChange={(e) => handleFilterChange('max_price', e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("max_price", e.target.value)
+                    }
                     placeholder="Ej: 500"
+                    min="0"
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
@@ -148,7 +161,7 @@ function Destinos() {
                   <input
                     type="text"
                     value={filters.tags}
-                    onChange={(e) => handleFilterChange('tags', e.target.value)}
+                    onChange={(e) => handleFilterChange("tags", e.target.value)}
                     placeholder="Ej: Playa, Aventura..."
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
                   />
@@ -161,7 +174,9 @@ function Destinos() {
                   </label>
                   <select
                     value={filters.environment}
-                    onChange={(e) => handleFilterChange('environment', e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("environment", e.target.value)
+                    }
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">Todos</option>
@@ -180,8 +195,11 @@ function Destinos() {
                   <input
                     type="number"
                     value={filters.duration_days}
-                    onChange={(e) => handleFilterChange('duration_days', e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("duration_days", e.target.value)
+                    }
                     placeholder="Ej: 5"
+                    min="1"
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
@@ -202,23 +220,32 @@ function Destinos() {
                     <FilterIcon className="w-4 h-4" />
                     Filtros
                   </button>
-                  
+
                   <span className="text-sm text-gray-600">
-                    {tours.length} {tours.length === 1 ? 'resultado' : 'resultados'}
+                    {tours.length}{" "}
+                    {tours.length === 1 ? "resultado" : "resultados"}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Vista:</span>
                   <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded ${viewMode === 'grid' ? 'bg-orange-100 text-orange-600' : 'text-gray-400'}`}
+                    onClick={() => setViewMode("grid")}
+                    className={`p-2 rounded ${
+                      viewMode === "grid"
+                        ? "bg-orange-100 text-orange-600"
+                        : "text-gray-400"
+                    }`}
                   >
                     <GridIcon className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded ${viewMode === 'list' ? 'bg-orange-100 text-orange-600' : 'text-gray-400'}`}
+                    onClick={() => setViewMode("list")}
+                    className={`p-2 rounded ${
+                      viewMode === "list"
+                        ? "bg-orange-100 text-orange-600"
+                        : "text-gray-400"
+                    }`}
                   >
                     <ListIcon className="w-4 h-4" />
                   </button>
@@ -232,28 +259,40 @@ function Destinos() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
               </div>
             ) : tours.length > 0 ? (
-              <div className={viewMode === 'grid' 
-                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
-                : 'space-y-6'
-              }>
-                {tours.map(tour => (
-                  <TourCard 
-                    key={tour.id} 
-                    tour={tour} 
-                    viewMode={viewMode}
-                  />
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    : "space-y-6"
+                }
+              >
+                {tours.map((tour) => (
+                  <TourCard key={tour.id} tour={tour} viewMode={viewMode} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
                 <div className="text-gray-400 mb-4">
-                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="mx-auto h-12 w-12"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron tours</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No se encontraron tours
+                </h3>
                 <p className="text-gray-500 mb-4">
-                  Intenta ajustar tus filtros de búsqueda o explorar todas nuestras experiencias.
+                  Intenta ajustar tus filtros de búsqueda o explorar todas
+                  nuestras experiencias.
                 </p>
                 <button
                   onClick={clearFilters}
