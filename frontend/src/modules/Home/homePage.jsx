@@ -45,7 +45,9 @@ function HomePage() {
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
           {!loading && !error && tours.length === 0 && (
-            <p className="text-center text-gray-500">No hay tours disponibles en este momento.</p>
+            <p className="text-center text-gray-500">
+              No hay tours disponibles en este momento.
+            </p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {tours.map((tour) => (
@@ -54,16 +56,18 @@ function HomePage() {
           </div>
         </Section>
 
-        {/* Banner Promocional */}
+        {/* Home Banner */}
         <HomeBanner
-          title="Ahorra viajando a Los Roques hasta un 35% descuento"
-          subtitle="Oferta de tiempo limitado, vive la experiencia paradisíaca de Los Roques con precios especiales"
-          buttonText="Reservar Ahora"
+          title="Título del banner"
+          subtitle="Subtítulo descriptivo"
+          buttonText="Texto del botón"
           discount="35%"
           image="https://www.adondealirio.com/wp-content/uploads/2020/09/losroques4.jpg"
-          theme="orange"
-          onButtonClick={handleBannerClick}
+          theme="orange" // orange, blue, green
           className="my-8"
+          tourId={6} // ID numérico del tour
+          // tourUrl="/tour/6" // O URL completa alternativa
+          // onButtonClick={() => {}} // O callback personalizado
         />
       </div>
     </>
