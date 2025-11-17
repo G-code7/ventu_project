@@ -149,17 +149,21 @@ function TourDetailPage() {
       return;
     }
 
-    const bookingData = {
-      tour,
-      selectedDate,
-      tickets,
-      variableExtras,
-      total: calculateTotal(),
-      totalPeople,
-    };
+  const finalDate = tour.availability_type === "SPECIFIC_DATE" 
+    ? tour.departure_date 
+    : selectedDate;
 
-    navigate("/checkout", { state: { bookingData } });
-  }, [user, tour, selectedDate, tickets, variableExtras, calculateTotal, navigate]);
+  const bookingData = {
+    tour,
+    selectedDate: finalDate,
+    tickets,
+    variableExtras,
+    total: calculateTotal(),
+    totalPeople,
+  };
+
+  navigate("/checkout", { state: { bookingData } });
+}, [user, tour, selectedDate, tickets, variableExtras, calculateTotal, navigate]);
 
   const openGallery = (index = 0) => {
     setGalleryInitialIndex(index);

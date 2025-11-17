@@ -12,7 +12,7 @@ const BookingWidget = ({
   onVariableExtraChange,
   onReservation,
   reserving,
-  hidePrice = false, // Nueva prop para ocultar precio
+  hidePrice = false,
 }) => {
   // Obtener los tipos de tickets disponibles DINÁMICAMENTE
   const availableTicketTypes = useMemo(() => {
@@ -26,6 +26,22 @@ const BookingWidget = ({
   const totalPeople = useMemo(() => {
     return Object.values(tickets).reduce((sum, num) => sum + (parseInt(num) || 0), 0);
   }, [tickets]);
+
+  // Determinar el tipo de disponibilidad
+  const isSpecificDate = tour?.availability_type === "SPECIFIC_DATE";
+  const isOpenDates = tour?.availability_type === "OPEN_DATES";
+
+  // Formatear fecha para mostrar
+  const formatDate = (dateString) => {
+    if (!dateString) return "Por definir";
+    const date = new Date(dateString + "T00:00:00");
+    return date.toLocaleDateString("es-VE", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
   // Calcular el total del precio
   const calculateTotal = () => {
@@ -102,16 +118,84 @@ const BookingWidget = ({
       )}
 
       <div className="p-4 space-y-4">
-        {/* Fecha */}
+        {/* SECCIÓN DE FECHA - CONDICIONAL */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">📅 Fecha del tour</label>
-          <input
-            type="date"
-            value={selectedDate}
-            min={new Date().toISOString().split("T")[0]}
-            onChange={(e) => onDateChange(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-          />
+          {/* <label className="block text-sm font-medium text-gray-700 mb-2">📅 Fecha del tour</label> */}
+
+          {/* CASO 1: FECHA ESPECÍFICA - Solo muestra la fecha fija */}
+          {isSpecificDate && tour?.departure_date && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-blue-600 font-semibold">🎯 Fecha única</span>
+              </div>
+              <p className="text-gray-900 font-medium">{formatDate(tour.departure_date)}</p>
+              {tour.departure_time && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Salida: {tour.departure_time.substring(0, 5)}
+                </p>
+              )}
+              <p className="text-xs text-blue-600 mt-2">
+                Este tour tiene una fecha de salida específica
+              </p>
+            </div>
+          )}
+
+          {/* CASO 2: RANGO DE FECHAS - Permite selección */}
+          {isOpenDates && (
+            <div className="space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-green-600 font-semibold text-sm">📆 Fechas disponibles</span>
+                </div>
+                <p className="text-xs text-gray-600">
+                  <span className="font-medium">Desde:</span> {formatDate(tour.available_from)}
+                </p>
+                <p className="text-xs text-gray-600">
+                  <span className="font-medium">Hasta:</span> {formatDate(tour.available_until)}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Selecciona tu fecha preferida:
+                </label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  min={tour.available_from || new Date().toISOString().split("T")[0]}
+                  max={tour.available_until}
+                  onChange={(e) => onDateChange(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              {/* Validación visual */}
+              {selectedDate && tour.available_from && tour.available_until && (
+                <div
+                  className={`text-xs p-2 rounded ${
+                    selectedDate >= tour.available_from && selectedDate <= tour.available_until
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {selectedDate >= tour.available_from && selectedDate <= tour.available_until
+                    ? `✓ Fecha seleccionada: ${formatDate(selectedDate)}`
+                    : "⚠️ La fecha seleccionada está fuera del rango disponible"}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CASO 3: Sin tipo definido - Fallback */}
+          {!isSpecificDate && !isOpenDates && (
+            <input
+              type="date"
+              value={selectedDate}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => onDateChange(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            />
+          )}
         </div>
 
         {/* Info Encuentro - Compacto */}
