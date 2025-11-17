@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
 
@@ -15,18 +15,30 @@ export function AuthProvider({ children }) {
         localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null
     );
     const [loadingAuth, setLoadingAuth] = useState(true);
+    const isRefreshing = useRef(false);
+    const failedQueue = useRef([]);
+
+    const processQueue = (error, token = null) => {
+        failedQueue.current.forEach(prom => {
+            if (error) {
+                prom.reject(error);
+            } else {
+                prom.resolve(token);
+            }
+        });
+        failedQueue.current = [];
+    };
 
     const logoutUser = useCallback(() => {
         setAuthTokens(null);
         setUser(null);
         localStorage.removeItem('authTokens');
+        isRefreshing.current = false;
+        failedQueue.current = [];
     }, []);
 
-    // 🔧 FUNCIÓN FALTANTE: loginUser
     const loginUser = useCallback((userData) => {
         setUser(userData);
-        
-        // Recargar tokens desde localStorage después del login
         const tokens = localStorage.getItem('authTokens');
         if (tokens) {
             setAuthTokens(JSON.parse(tokens));
@@ -101,7 +113,6 @@ export function AuthProvider({ children }) {
         }
     }, [fetchUserProfile, logoutUser]);
 
-    // Interceptor para añadir token a las requests
     useEffect(() => {
         const requestInterceptor = axiosInstance.interceptors.request.use(
             (config) => {
@@ -122,18 +133,36 @@ export function AuthProvider({ children }) {
         };
     }, []);
 
-    // Interceptor de respuesta para manejar token expirado
     useEffect(() => {
         const responseInterceptor = axiosInstance.interceptors.response.use(
             (response) => response,
             async (error) => {
                 const originalRequest = error.config;
-                
                 if (error.response?.status === 401 && !originalRequest._retry) {
+                    
+                    if (originalRequest.url?.includes('/token/refresh/')) {
+                        console.error("Refresh token inválido o expirado");
+                        logoutUser();
+                        return Promise.reject(error);
+                    }
+                    
+                    if (isRefreshing.current) {
+                        return new Promise((resolve, reject) => {
+                            failedQueue.current.push({ resolve, reject });
+                        })
+                        .then(token => {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            return axiosInstance(originalRequest);
+                        })
+                        .catch(err => Promise.reject(err));
+                    }
+
                     originalRequest._retry = true;
+                    isRefreshing.current = true;
                     
                     const tokens = localStorage.getItem('authTokens');
                     if (!tokens) {
+                        isRefreshing.current = false;
                         logoutUser();
                         return Promise.reject(error);
                     }
@@ -143,9 +172,10 @@ export function AuthProvider({ children }) {
 
                     if (refreshToken) {
                         try {
-                            const response = await axiosInstance.post('/token/refresh/', {
-                                refresh: refreshToken
-                            });
+                            const response = await axios.post(
+                                `${axiosInstance.defaults.baseURL}/token/refresh/`,
+                                { refresh: refreshToken }
+                            );
                             
                             const newTokens = { 
                                 access: response.data.access, 
@@ -155,18 +185,29 @@ export function AuthProvider({ children }) {
                             localStorage.setItem('authTokens', JSON.stringify(newTokens));
                             setAuthTokens(newTokens);
                             
-                            const userProfile = await fetchUserProfile();
-                            setUser(userProfile);
+                            processQueue(null, newTokens.access);
+                            
+                            try {
+                                const userProfile = await fetchUserProfile();
+                                setUser(userProfile);
+                            } catch (profileError) {
+                                console.warn("No se pudo actualizar perfil después de refresh");
+                            }
                             
                             originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
+                            isRefreshing.current = false;
+                            
                             return axiosInstance(originalRequest);
                             
                         } catch (refreshError) {
                             console.error("Refresh token fallido, cerrando sesión", refreshError);
+                            processQueue(refreshError, null);
+                            isRefreshing.current = false;
                             logoutUser();
                             return Promise.reject(refreshError);
                         }
                     } else {
+                        isRefreshing.current = false;
                         logoutUser();
                     }
                 }
@@ -179,7 +220,6 @@ export function AuthProvider({ children }) {
         };
     }, [logoutUser, fetchUserProfile]);
 
-    // Verificar autenticación al cargar
     useEffect(() => {
         checkAuth();
     }, [checkAuth]);
