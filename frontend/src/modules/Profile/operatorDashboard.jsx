@@ -223,7 +223,8 @@ const CHART_COLORS = {
 const PIE_COLORS = ["#f97316", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"];
 
 function OperatorDashboard() {
-  const [dashboardData, setDashboardData] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [chartData, setChartData] = useState([]);
   const [packages, setPackages] = useState([]);
   const [metrics, setMetrics] = useState({
     totalPackages: 0,
@@ -440,7 +441,7 @@ function OperatorDashboard() {
         <div className="h-80">
           {chartType === "line" && (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dashboardData}>
+              <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="name" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />

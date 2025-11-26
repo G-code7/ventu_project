@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { axiosInstance, useAuth } from "../Auth/authContext";
 import {
   HeartIcon,
@@ -254,6 +254,22 @@ function TourDetailPage() {
                 </div>
                 <span className="text-gray-400 hidden sm:inline">|</span>
                 <span className="text-gray-600 hidden sm:inline">{tour.available_slots} plazas disponibles</span>
+              </div>
+
+              {/* Link al operador */}
+              <div className="mt-3">
+                <Link
+                  to={`/operador/${tour.operator_username}`}
+                  className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-orange-500 transition-colors"
+                >
+                  <span className="font-medium">Organizado por:</span>
+                  <span className="text-orange-500 font-semibold hover:underline">
+                    {tour.operator_name || tour.operator_username}
+                  </span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </Link>
               </div>
             </div>
 

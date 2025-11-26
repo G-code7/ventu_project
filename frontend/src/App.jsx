@@ -15,6 +15,7 @@ import { lazy, Suspense } from "react";
 import CheckoutPage from "./modules/Bookings/checkoutPage";
 import MyTripsPage from "./modules/Bookings/myTripsPage";
 import Destinos from "./modules/Tours/destinos";
+import OperatorPublicProfile from './modules/Profile/operatorProfileView';
 
 function AppContent() {
   const { user, authTokens } = useAuth();
@@ -27,6 +28,7 @@ function AppContent() {
         {/* Rutas públicas */}
         <Route path="/tour/:tourId" element={<TourDetailPage />} />
         <Route path="/destinos" element={<Destinos />} />
+        <Route path="/operador/:username" element={<OperatorPublicProfile />} />
 
         {/* Rutas protegidas */}
         <Route element={<ProtectedRoute />}>

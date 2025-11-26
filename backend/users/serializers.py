@@ -2,6 +2,7 @@ from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from .models import CustomUser, OperatorProfile, TravelerProfile
 
+
 class UserRegistrationSerializer(RegisterSerializer):
     role = serializers.ChoiceField(
         choices=CustomUser.Role.choices,
@@ -98,36 +99,109 @@ class UserRegistrationSerializer(RegisterSerializer):
 
         # Crear el perfil correspondiente
         if user.role == 'OPERATOR':
-            OperatorProfile.objects.create(
+            OperatorProfile.objects.update_or_create(
                 user=user,
-                organization_name=self.cleaned_data.get('organization_name', ''),
-                rif_type=self.cleaned_data.get('rif_type', ''),
-                rif_number=self.cleaned_data.get('rif_number', '')
+                defaults={
+                    'organization_name': self.cleaned_data.get('organization_name', ''),
+                    'rif_type': self.cleaned_data.get('rif_type', ''),
+                    'rif_number': self.cleaned_data.get('rif_number', '')
+                }
             )
         elif user.role == 'TRAVELER':
-            TravelerProfile.objects.create(
+            TravelerProfile.objects.update_or_create(
                 user=user,
-                cedula=self.cleaned_data.get('cedula', ''),
-                phone_number=self.cleaned_data.get('phone_number', ''),
-                can_contact_by_whatsapp=self.cleaned_data.get('can_contact_by_whatsapp', True)
+                defaults={
+                    'cedula': self.cleaned_data.get('cedula', ''),
+                    'phone_number': self.cleaned_data.get('phone_number', ''),
+                    'can_contact_by_whatsapp': self.cleaned_data.get('can_contact_by_whatsapp', True)
+                }
             )
         
         return user
+
 
 class OperatorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = OperatorProfile
         fields = ['organization_name', 'social_media_link', 'rif_type', 'rif_number', 'status']
 
+
 class TravelerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TravelerProfile
         fields = ['cedula', 'phone_number', 'can_contact_by_whatsapp']
 
+
 class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer para el perfil de usuario que incluye los perfiles específicos del rol.
+    """
+    # Perfiles anidados (solo lectura)
     operator_profile = OperatorProfileSerializer(read_only=True)
     traveler_profile = TravelerProfileSerializer(read_only=True)
+    
+    # Campos computados para facilitar acceso en frontend
+    full_name = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField()
+    cedula = serializers.SerializerMethodField()
+    business_name = serializers.SerializerMethodField()
+    is_whatsapp = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'operator_profile', 'traveler_profile']
+        fields = [
+            'id', 
+            'username', 
+            'email', 
+            'first_name', 
+            'last_name',
+            'full_name',
+            'role', 
+            'date_joined',
+            'is_active',
+            # Campos computados desde los perfiles
+            'phone_number', 
+            'cedula', 
+            'business_name',
+            'is_whatsapp',
+            'is_verified',
+            # Perfiles completos
+            'operator_profile',
+            'traveler_profile',
+        ]
+        read_only_fields = ['id', 'email', 'date_joined', 'is_active']
+    
+    def get_full_name(self, obj):
+        """Obtener nombre completo"""
+        return obj.get_full_name() or obj.username
+    
+    def get_phone_number(self, obj):
+        """Obtener teléfono desde el perfil correspondiente"""
+        if obj.role == 'TRAVELER' and hasattr(obj, 'traveler_profile'):
+            return obj.traveler_profile.phone_number
+        return ''
+    
+    def get_cedula(self, obj):
+        """Obtener cédula desde perfil de viajero"""
+        if obj.role == 'TRAVELER' and hasattr(obj, 'traveler_profile'):
+            return obj.traveler_profile.cedula
+        return ''
+    
+    def get_business_name(self, obj):
+        """Obtener nombre de organización desde perfil de operador"""
+        if obj.role == 'OPERATOR' and hasattr(obj, 'operator_profile'):
+            return obj.operator_profile.organization_name
+        return ''
+    
+    def get_is_whatsapp(self, obj):
+        """Obtener preferencia de WhatsApp desde perfil de viajero"""
+        if obj.role == 'TRAVELER' and hasattr(obj, 'traveler_profile'):
+            return obj.traveler_profile.can_contact_by_whatsapp
+        return False
+    
+    def get_is_verified(self, obj):
+        """Verificar si el operador está activo"""
+        if obj.role == 'OPERATOR' and hasattr(obj, 'operator_profile'):
+            return obj.operator_profile.status == 'ACTIVE'
+        return True  # Los viajeros están "verificados" por defecto
