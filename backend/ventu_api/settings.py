@@ -303,18 +303,17 @@ if USE_S3:
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',  # 1 día
     }
-    
-    # S3 Static & Media Settings
-    AWS_LOCATION = 'static'
+
+    # Default ACL
     AWS_DEFAULT_ACL = 'public-read'
-    
-    # Static files (CSS, JavaScript, Images)
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
-    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    
-    # Media files (uploads)
+
+    # Static files (CSS, JavaScript, Images) - van a /static/
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+    STATICFILES_STORAGE = 'ventu_api.storage_backends.StaticStorage'
+
+    # Media files (uploads de usuarios) - van a /media/
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    DEFAULT_FILE_STORAGE = 'ventu_api.storage_backends.MediaStorage'
 else:
     # Local storage (desarrollo)
     STATIC_URL = '/static/'
