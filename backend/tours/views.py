@@ -337,6 +337,63 @@ class TourPackageViewSet(viewsets.ModelViewSet):
 
         return Response(results)
 
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def experiences_stats(self, request):
+        """
+        Estadísticas de tours por tipo de experiencia (environment)
+        Endpoint público para mostrar categorías en el home
+        """
+        # Solo contar tours publicados y activos
+        published_tours = TourPackage.objects.filter(
+            status='PUBLISHED',
+            is_active=True
+        ).select_related('operator').prefetch_related('images')
+
+        # Agrupar por environment y contar
+        experiences_data = published_tours.values(
+            'environment'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        # Enriquecer con imagen representativa y label con emoji
+        results = []
+        for exp in experiences_data:
+            environment_code = exp['environment']
+            count = exp['count']
+
+            # Obtener el label con emoji desde el modelo
+            from .models import Environment
+            try:
+                environment_choice = Environment[environment_code]
+                label = environment_choice.label
+            except (KeyError, AttributeError):
+                label = environment_code
+
+            # Obtener un tour de esta categoría que tenga imagen
+            sample_tour = published_tours.filter(
+                environment=environment_code
+            ).prefetch_related('images').first()
+
+            image_url = None
+            if sample_tour and sample_tour.images.exists():
+                main_image = sample_tour.images.filter(is_main_image=True).first()
+                if not main_image:
+                    main_image = sample_tour.images.first()
+                if main_image and main_image.image:
+                    image_url = request.build_absolute_uri(main_image.image.url)
+
+            results.append({
+                'code': environment_code,
+                'label': label,
+                'name': label,  # Alias para compatibilidad
+                'count': count,
+                'tours': count,  # Alias para compatibilidad
+                'image': image_url
+            })
+
+        return Response(results)
+
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { axiosInstance } from "../Auth/authContext";
 import Hero from "./hero";
 import FeaturedDestinations from "./featuredDestinations";
+import ExperienceCategories from "./experienceCategories";
 import Section from "../Layout/section";
 import TourCard from "../Tours/tourCard";
 import HomeBanner from "../Home/homeBanner";
@@ -36,6 +37,8 @@ function HomePage() {
       <Hero />
       <div className="container mx-auto px-6 py-12 space-y-16">
         <FeaturedDestinations />
+
+        <ExperienceCategories />
 
         <Section title="Experiencias Populares">
           {loading && (
