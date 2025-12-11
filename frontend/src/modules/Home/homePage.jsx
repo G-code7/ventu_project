@@ -3,6 +3,8 @@ import { axiosInstance } from "../Auth/authContext";
 import Hero from "./hero";
 import FeaturedDestinations from "./featuredDestinations";
 import ExperienceCategories from "./experienceCategories";
+import WhyVentu from "./whyVentu";
+import HowToStart from "./howToStart";
 import Section from "../Layout/section";
 import TourCard from "../Tours/tourCard";
 import HomeBanner from "../Home/homeBanner";
@@ -72,7 +74,13 @@ function HomePage() {
           // tourUrl="/tour/6" // O URL completa alternativa
           // onButtonClick={() => {}} // O callback personalizado
         />
+
+        {/* Secciones informativas */}
+        <WhyVentu />
       </div>
+
+      {/* HowToStart con fondo especial (fuera del container) */}
+      <HowToStart />
     </>
   );
 }
