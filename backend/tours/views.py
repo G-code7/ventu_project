@@ -289,6 +289,54 @@ class TourPackageViewSet(viewsets.ModelViewSet):
         serializer = TourPackageStatsSerializer(stats)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def destinations_stats(self, request):
+        """
+        Estadísticas de tours por estado de destino
+        Endpoint público para mostrar destinos destacados en el home
+        """
+        # Solo contar tours publicados y activos
+        published_tours = TourPackage.objects.filter(
+            status='PUBLISHED',
+            is_active=True
+        ).select_related('operator').prefetch_related('images')
+
+        # Agrupar por estado de destino y contar
+        destinations_data = published_tours.values(
+            'state_destination'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        # Enriquecer con imagen representativa de cada destino
+        results = []
+        for dest in destinations_data:
+            state = dest['state_destination']
+            count = dest['count']
+
+            # Obtener un tour de este destino que tenga imagen
+            sample_tour = published_tours.filter(
+                state_destination=state
+            ).prefetch_related('images').first()
+
+            image_url = None
+            if sample_tour and sample_tour.images.exists():
+                main_image = sample_tour.images.filter(is_main_image=True).first()
+                if not main_image:
+                    main_image = sample_tour.images.first()
+                if main_image and main_image.image:
+                    image_url = request.build_absolute_uri(main_image.image.url)
+
+            results.append({
+                'name': state,
+                'state': state,
+                'tours': count,
+                'count': count,
+                'image': image_url
+            })
+
+        return Response(results)
+
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
