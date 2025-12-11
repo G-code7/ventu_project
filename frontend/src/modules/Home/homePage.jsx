@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { axiosInstance } from "../Auth/authContext";
 import Hero from "./hero";
 import FeaturedDestinations from "./featuredDestinations";
+import ExperienceCategories from "./experienceCategories";
+import WhyVentu from "./whyVentu";
+import HowToStart from "./howToStart";
 import Section from "../Layout/section";
 import TourCard from "../Tours/tourCard";
 import HomeBanner from "../Home/homeBanner";
@@ -69,6 +72,13 @@ function HomePage() {
           // tourUrl="/tour/6" // O URL completa alternativa
           // onButtonClick={() => {}} // O callback personalizado
         />
+
+      <ExperienceCategories />
+      
+      <WhyVentu />
+      <HowToStart />
+
+
       </div>
     </>
   );

@@ -1,73 +1,61 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Section from "../Layout/section";
 import { ChevronLeftIcon, ChevronRightIcon } from "../Shared/icons";
+import { axiosInstance } from "../Auth/authContext";
 
 function FeaturedDestinations() {
-  const destinations = [
-    {
-      name: "Canaima",
-      tours: 15,
-      image:
-        "https://photo620x400.mnstatic.com/371537cc289b532e8c09a6f1df03ff52/parque-nacional-canaima.jpg",
-    },
-    {
-      name: "Morrocoy",
-      tours: 25,
-      image: "https://noticias.com.ve/wp-content/uploads/2019/05/morrocoy.jpg",
-    },
-    {
-      name: "Los Roques",
-      tours: 18,
-      image:
-        "https://www.adondealirio.com/wp-content/uploads/2020/09/losroques4.jpg",
-    },
-    {
-      name: "Mérida",
-      tours: 30,
-      image:
-        "https://images.squarespace-cdn.com/content/v1/5d77a7f8ad30356d21445262/1580493463932-NSJ7M1XNO9K687IN3CPV/Pueblo-de-merida-venezuela.jpg",
-    },
-    {
-      name: "La Gran Sabana",
-      tours: 12,
-      image:
-        "https://wakutours.com/wp-content/uploads/2020/06/La-Gran-Sabana-Waku-13.jpg",
-    },
-    {
-      name: "Margarita",
-      tours: 22,
-      image:
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzGUcib62biEMUsUH1iJtkN8AVy7U9sQHlcw&s",
-    },
-    {
-      name: "Choroní",
-      tours: 14,
-      image:
-        "https://upload.wikimedia.org/wikipedia/commons/a/af/Colores_de_Pueblo.JPG",
-    },
-    {
-      name: "Colonia Tovar",
-      tours: 8,
-      image:
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzDlaOSawYbuI2lHgAwdTaZjfTjF_R2lZK7A&s",
-    },
-    {
-      name: "Roraima",
-      tours: 11,
-      image:
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Mochima",
-      tours: 17,
-      image:
-        "https://images.unsplash.com/photo-1613767815834-606be30b47f2?auto=format&fit=crop&w=400&q=80",
-    },
-  ];
+  const navigate = useNavigate();
+
+  // Estados para datos de la API
+
+  const [destinations, setDestinations] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState(null);
+
+  // Estados de paginación
 
   const [currentPage, setCurrentPage] = useState(0);
+
   const [itemsPerView, setItemsPerView] = useState(6);
+
   const [totalPages, setTotalPages] = useState(0);
+
+  // Cargar destinos desde la API
+
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      try {
+        setLoading(true);
+
+        const response = await axiosInstance.get("/tours/destinations_stats/");
+
+        const data = response.data || [];
+
+        // Filtrar solo destinos con imagen para mejor UX
+
+        const destinationsWithImages = data.filter((dest) => dest.image);
+
+        setDestinations(destinationsWithImages);
+
+        setError(null);
+      } catch (err) {
+        console.error("Error cargando destinos:", err);
+
+        setError("No se pudieron cargar los destinos");
+
+        // Fallback a lista vacía
+
+        setDestinations([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDestinations();
+  }, []);
 
   // Calcular items por vista según el tamaño de pantalla
   useEffect(() => {
@@ -110,8 +98,55 @@ function FeaturedDestinations() {
     (currentPage + 1) * itemsPerView
   );
 
+  // Manejar click en destino - navegar con filtro
+
+  const handleDestinationClick = (destination) => {
+    navigate(
+      `/destinos?destination=${encodeURIComponent(
+        destination.state || destination.name
+      )}`
+    );
+  };
+
+  // Loading state
+
+  if (loading) {
+    return (
+      <Section title="Destinos Destacados">
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </Section>
+    );
+  }
+
+  // Error state
+
+  if (error) {
+    return (
+      <Section title="Destinos Destacados">
+        <div className="text-center py-12">
+          <p className="text-gray-500">{error}</p>
+        </div>
+      </Section>
+    );
+  }
+
+  // Empty state
+  if (destinations.length === 0) {
+    return (
+      <Section title="Destinos Destacados">
+        <div className="text-center py-12">
+          <p className="text-gray-500">
+            No hay destinos disponibles en este momento
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
   return (
-    <Section title="Destinos Destacados" seeAllLink="/destinations">
+    <Section title="Destinos Destacados" seeAllLink="/destinos">
       <div className="relative">
         {/* Contenedor principal con gradientes laterales */}
         <div className="relative overflow-visible px-4">
@@ -136,6 +171,7 @@ function FeaturedDestinations() {
             {currentDestinations.map((destination, index) => (
               <div
                 key={`${destination.name}-${index}`}
+                onClick={() => handleDestinationClick(destination)}
                 className="flex flex-col items-center text-center group cursor-pointer transform hover:scale-105 transition-all duration-300"
               >
                 {/* Imagen con efecto hover */}
