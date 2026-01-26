@@ -1,0 +1,65 @@
+name: Deploy Full Stack
+
+on:
+  workflow_dispatch:  # Solo manual - para deploys coordinados
+    inputs:
+      deploy_frontend:
+        description: 'Desplegar Frontend'
+        required: true
+        default: true
+        type: boolean
+      deploy_backend:
+        description: 'Desplegar Backend'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy-backend:
+    if: ${{ inputs.deploy_backend }}
+    uses: ./.github/workflows/deploy-backend.yml
+    secrets: inherit
+
+  deploy-frontend:
+    if: ${{ inputs.deploy_frontend }}
+    needs: deploy-backend
+    uses: ./.github/workflows/deploy-frontend.yml
+    secrets: inherit
+    # Si backend no se despliega, frontend sigue adelante
+    if: ${{ always() && inputs.deploy_frontend }}
+
+  notify:
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Resumen del deploy completo
+        run: |
+          echo "## 🚀 Deploy Full Stack Completado" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Resultados:" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.deploy-backend.result }}" = "success" ]; then
+            echo "- ✅ Backend: Desplegado" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.deploy-backend.result }}" = "skipped" ]; then
+            echo "- ⏭️ Backend: Omitido" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Backend: Falló" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.deploy-frontend.result }}" = "success" ]; then
+            echo "- ✅ Frontend: Desplegado" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.deploy-frontend.result }}" = "skipped" ]; then
+            echo "- ⏭️ Frontend: Omitido" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Frontend: Falló" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Fecha:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
