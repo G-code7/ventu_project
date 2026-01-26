@@ -6,11 +6,11 @@ on:
       - main
     paths:
       - 'frontend/**'
-  workflow_dispatch:  # Permite ejecutar manualmente
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
-  S3_BUCKET: ventu-frontend-2026 
+  S3_BUCKET: ventu-frontend-2026
 
 jobs:
   build-and-deploy:
@@ -51,7 +51,6 @@ jobs:
       - name: Sincronizar con S3
         working-directory: frontend
         run: |
-          # Subir archivos con cache headers apropiados
           # Assets (JS, CSS, imágenes) - cache largo (1 año)
           aws s3 sync dist/ s3://${{ env.S3_BUCKET }} \
             --delete \
@@ -64,14 +63,6 @@ jobs:
             --exclude "*" \
             --include "*.html" \
             --cache-control "no-cache, no-store, must-revalidate"
-
-      - name: Invalidar CloudFront (opcional)
-        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
-        continue-on-error: true
 
       - name: Resumen del deploy
         run: |
