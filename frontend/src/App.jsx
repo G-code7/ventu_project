@@ -16,6 +16,7 @@ import CheckoutPage from "./modules/Bookings/checkoutPage";
 import MyTripsPage from "./modules/Bookings/myTripsPage";
 import Destinos from "./modules/Tours/destinos";
 import OperatorPublicProfile from './modules/Profile/operatorProfileView';
+import OperadoresLanding from './pages/operadoresLanding';
 
 function AppContent() {
   const { user, authTokens } = useAuth();
@@ -29,6 +30,7 @@ function AppContent() {
         <Route path="/tour/:tourId" element={<TourDetailPage />} />
         <Route path="/destinos" element={<Destinos />} />
         <Route path="/operador/:username" element={<OperatorPublicProfile />} />
+        <Route path="/operadores" element={<OperadoresLanding />} />
 
         {/* Rutas protegidas */}
         <Route element={<ProtectedRoute />}>

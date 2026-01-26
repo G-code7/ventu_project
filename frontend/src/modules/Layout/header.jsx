@@ -58,7 +58,7 @@ function Header({ onLoginClick, onRegisterClick }) {
           <a href="#" className="hover:text-orange-500 transition-colors">
             Experiencias
           </a>
-          <a href="#" className="hover:text-orange-500 transition-colors">
+          <a href="/operador" className="hover:text-orange-500 transition-colors">
             Hazte Operador
           </a>
         </div>
