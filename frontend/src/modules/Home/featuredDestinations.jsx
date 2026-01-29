@@ -8,46 +8,29 @@ function FeaturedDestinations() {
   const navigate = useNavigate();
 
   // Estados para datos de la API
-
   const [destinations, setDestinations] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState(null);
 
   // Estados de paginación
-
   const [currentPage, setCurrentPage] = useState(0);
-
   const [itemsPerView, setItemsPerView] = useState(6);
-
   const [totalPages, setTotalPages] = useState(0);
 
   // Cargar destinos desde la API
-
   useEffect(() => {
     const fetchDestinations = async () => {
       try {
         setLoading(true);
-
         const response = await axiosInstance.get("/tours/destinations_stats/");
-
         const data = response.data || [];
-
-        // Filtrar solo destinos con imagen para mejor UX
-
-        const destinationsWithImages = data.filter((dest) => dest.image);
-
-        setDestinations(destinationsWithImages);
-
+        
+        // Mostrar todos los destinos (con o sin imagen)
+        setDestinations(data);
         setError(null);
       } catch (err) {
         console.error("Error cargando destinos:", err);
-
         setError("No se pudieron cargar los destinos");
-
-        // Fallback a lista vacía
-
         setDestinations([]);
       } finally {
         setLoading(false);
@@ -99,7 +82,6 @@ function FeaturedDestinations() {
   );
 
   // Manejar click en destino - navegar con filtro
-
   const handleDestinationClick = (destination) => {
     navigate(
       `/destinos?destination=${encodeURIComponent(
@@ -109,7 +91,6 @@ function FeaturedDestinations() {
   };
 
   // Loading state
-
   if (loading) {
     return (
       <Section title="Destinos Destacados">
@@ -121,7 +102,6 @@ function FeaturedDestinations() {
   }
 
   // Error state
-
   if (error) {
     return (
       <Section title="Destinos Destacados">
@@ -174,14 +154,22 @@ function FeaturedDestinations() {
                 onClick={() => handleDestinationClick(destination)}
                 className="flex flex-col items-center text-center group cursor-pointer transform hover:scale-105 transition-all duration-300"
               >
-                {/* Imagen con efecto hover */}
+                {/* Imagen con efecto hover o placeholder */}
                 <div className="relative mb-3">
                   <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32">
-                    <img
-                      src={destination.image}
-                      alt={destination.name}
-                      className="w-full h-full object-cover rounded-full shadow-lg transform group-hover:scale-110 transition-all duration-300 border-4 border-white group-hover:border-orange-300"
-                    />
+                    {destination.image ? (
+                      <img
+                        src={destination.image}
+                        alt={destination.name}
+                        className="w-full h-full object-cover rounded-full shadow-lg transform group-hover:scale-110 transition-all duration-300 border-4 border-white group-hover:border-orange-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full rounded-full shadow-lg border-4 border-white group-hover:border-orange-300 bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center transform group-hover:scale-110 transition-all duration-300">
+                        <span className="text-white font-bold text-xl sm:text-2xl md:text-3xl">
+                          {destination.name?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {/* Efecto de superposición al hover */}
                   <div className="absolute inset-0 rounded-full bg-orange-500 opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
@@ -193,8 +181,14 @@ function FeaturedDestinations() {
                     {destination.name}
                   </h3>
                   <p className="text-xs sm:text-sm text-gray-500 font-medium">
-                    {destination.tours}{" "}
-                    {destination.tours === 1 ? "experiencia" : "experiencias"}
+                    {destination.tours === 0 ? (
+                      <span className="text-gray-400">Sin experiencias aún</span>
+                    ) : (
+                      <>
+                        {destination.tours}{" "}
+                        {destination.tours === 1 ? "experiencia" : "experiencias"}
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
