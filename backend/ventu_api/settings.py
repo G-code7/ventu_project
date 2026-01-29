@@ -233,6 +233,7 @@ REST_AUTH = {
     'SESSION_LOGIN': False,
     'OLD_PASSWORD_FIELD_ENABLED': True,
     'REGISTER_SERIALIZER': 'users.serializers.UserRegistrationSerializer',
+    'LOGIN_SERIALIZER': 'users.serializers.CustomLoginSerializer',
 }
 # ==============================================================================
 # Security Settings

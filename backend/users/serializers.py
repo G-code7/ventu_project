@@ -1,7 +1,41 @@
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from .models import CustomUser, OperatorProfile, TravelerProfile
+from django.contrib.auth import authenticate
+from dj_rest_auth.serializers import LoginSerializer as BaseLoginSerializer
 
+
+class CustomLoginSerializer(BaseLoginSerializer):
+    """
+    Serializer personalizado para login que usa email en lugar de username.
+    """
+    username = None  # Removemos el campo username
+    email = serializers.EmailField(required=True)
+    
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+        
+        if email and password:
+            user = authenticate(
+                request=self.context.get('request'),
+                username=email,  # Django usa username internamente
+                password=password
+            )
+            
+            if not user:
+                msg = 'No se puede iniciar sesión con las credenciales proporcionadas.'
+                raise serializers.ValidationError(msg, code='authorization')
+            
+            if not user.is_active:
+                msg = 'La cuenta de usuario está desactivada.'
+                raise serializers.ValidationError(msg, code='authorization')
+        else:
+            msg = 'Debe incluir "email" y "password".'
+            raise serializers.ValidationError(msg, code='authorization')
+        
+        attrs['user'] = user
+        return attrs
 
 class UserRegistrationSerializer(RegisterSerializer):
     role = serializers.ChoiceField(
