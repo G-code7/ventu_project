@@ -288,36 +288,27 @@ LOGGING = {
     },
 }
 # ==============================================================================
-# AWS S3 Configuration para Media Files
+# Cloudflare R2 Configuration para Media Files
 # ==============================================================================
 USE_S3 = os.environ.get('USE_S3', 'False').lower() == 'true'
 
 if USE_S3:
-    # AWS S3 Settings
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.environ.get('R2_ENDPOINT_URL')
     
-    # S3 Object Parameters
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',  # 1 día
-    }
-    # Default ACL
-    AWS_DEFAULT_ACL = 'public-read'
+    AWS_S3_REGION_NAME = 'auto'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None 
 
-    # Static files (CSS, JavaScript, Images)
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-    STATICFILES_STORAGE = 'ventu_api.storage_backends.StaticStorage'
-
-    # Media files (uploads de usuarios)
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-    DEFAULT_FILE_STORAGE = 'ventu_api.storage_backends.MediaStorage'
-else:
-    # Local storage (desarrollo)
-    STATIC_URL = '/static/'
-    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    R2_PUBLIC_DOMAIN = os.environ.get('R2_PUBLIC_DOMAIN')
     
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
+    if R2_PUBLIC_DOMAIN:
+        AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN
+        MEDIA_URL = f'https://{R2_PUBLIC_DOMAIN}/'
+    else:
+        MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
+
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
